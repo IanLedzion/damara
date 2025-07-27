@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Version>4.27.0</Version>
+		<AssemblyVersion>4.27.0</AssemblyVersion>
+		<FileVersion>4.27.0</FileVersion>
+		<Company>Ian Ledzion</Company>
+		<Copyright>Copyright © Vertx-IQ AG 2025</Copyright>
+		<AssemblyName>Damara</AssemblyName>
+		<RootNamespace>Damara</RootNamespace>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<PackageId>Damara</PackageId>
+	</PropertyGroup>
+
+	<!-- Common references -->
+	<ItemGroup>
+		<PackageReference Include="EmailValidation" Version="1.3.0" />
+		<PackageReference Include="FluentValidation" Version="12.0.0" />
+        <PackageReference Include="libphonenumber-csharp" Version="9.0.6" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.5" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Serilog" Version="4.3.0" />
+		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="ThomasLevesque.WeakEvent" Version="4.1.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="..\stylecop.json" />
+	</ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+</Project>
+

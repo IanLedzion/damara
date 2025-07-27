@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Version>4.27.0</Version>
+		<AssemblyVersion>4.27.0</AssemblyVersion>
+		<FileVersion>4.27.0</FileVersion>
+		<Company>Ian Ledzion</Company>
+		<Copyright>Copyright © Ian Ledzion 2015-2024</Copyright>
+		<AssemblyName>Damara.Mvc</AssemblyName>
+		<RootNamespace>Damara.Mvc</RootNamespace>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<PackageId>Damara.Mvc</PackageId>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.5" />
+		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="..\stylecop.json" />
+	</ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Damara.Core\Damara.Core.csproj" />
+	</ItemGroup>
+
+</Project>

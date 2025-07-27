@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<Version>4.27.0</Version>
+		<AssemblyVersion>4.27.0</AssemblyVersion>
+		<FileVersion>4.27.0</FileVersion>
+		<Company>Ian Ledzion</Company>
+		<Copyright>Copyright © Ian Ledzion 2015-2024</Copyright>
+		<AssemblyName>Damara.Hosting</AssemblyName>
+		<RootNamespace>Damara.Hosting</RootNamespace>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<PackageId>Damara.Hosting</PackageId>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="Damara.Hosting.csproj.vspscc" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Damara.Core\Damara.Core.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Components" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.5" />
+		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="..\stylecop.json" />
+	</ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+</Project>
