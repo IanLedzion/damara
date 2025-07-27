@@ -1,16 +1,16 @@
 <Config>
   <Versions>
-    <Major>4</Major>
-    <Minor>27</Minor>
+    <Major>5</Major>
+    <Minor>0</Minor>
     <Patch>0</Patch>
     <Prerelease>0</Prerelease>
   </Versions>
   <ProjectProperties>
-    <Version>4.27.0</Version>
-    <AssemblyVersion>4.27.0</AssemblyVersion>
-    <FileVersion>4.27.0</FileVersion>
+    <Version>5.0.0</Version>
+    <AssemblyVersion>5.0.0</AssemblyVersion>
+    <FileVersion>5.0.0</FileVersion>
   </ProjectProperties>
   <PublishProperties>
-    <PublishImageTag>4.27.0</PublishImageTag>
+    <PublishImageTag>5.0.0</PublishImageTag>
   </PublishProperties>
 </Config>
