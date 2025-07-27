@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<Version>4.27.0</Version>
+		<Company>Ian Ledzion</Company>
+		<Copyright>Copyright © Ian Ledzion 2015-2024</Copyright>
+		<AssemblyVersion>4.27.0</AssemblyVersion>
+		<FileVersion>4.27.0</FileVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net5.0|AnyCPU'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+	</PropertyGroup>
+
+	<ItemGroup>
+        <PackageReference Include="Devart.Data" Version="6.0.235" />
+        <PackageReference Include="Devart.Data.Linq" Version="5.2.235" />
+        <PackageReference Include="Devart.Data.SqlServer.Linq" Version="5.2.235" />
+        <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.5" />
+		<PackageReference Include="FluentValidation" Version="12.0.0" />
+		<PackageReference Include="MSTest.TestFramework" Version="3.9.1" />
+		<PackageReference Include="MSTest.TestAdapter" Version="3.9.1" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="..\stylecop.json" />
+	</ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Damara.Core\Damara.Core.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="ObjectInstances\TestDataContext.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>TestDataContext.lqml</DependentUpon>
+		</Compile>
+		<Compile Update="ValidationLanauageResources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>ValidationLanauageResources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="ValidationLanauageResources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>ValidationLanauageResources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="appsettings.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+</Project>
