@@ -9,7 +9,8 @@ namespace Damara;
 /// </summary>
 /// <typeparam name="TUnitOfWork">The type of the unit of work.</typeparam>
 /// <typeparam name="TEntity">The entity type managed by the repository.</typeparam>
-public abstract class RepositoryBase<TUnitOfWork, TEntity> : IRepository<TEntity> where TUnitOfWork : IUnitOfWork
+public abstract class RepositoryBase<TUnitOfWork, TEntity> : IRepository<TEntity>
+    where TUnitOfWork : IUnitOfWork
     where TEntity : EntityBase
 {
     /// <summary>
@@ -54,5 +55,5 @@ public abstract class RepositoryBase<TUnitOfWork, TEntity> : IRepository<TEntity
     /// <summary>
     /// Gets all the entities in the current repository.
     /// </summary>
-    public abstract IEnumerable<TEntity> GetAll();
+    public abstract IQueryable<TEntity> GetAll();
 }
