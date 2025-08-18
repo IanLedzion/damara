@@ -13,7 +13,7 @@ namespace Damara.Mvc;
 /// </summary>
 /// <seealso cref="ControllerBase" />
 public class UnitOfWorkControllerBase<TUnitOfWork> : ControllerBase, IDisposable
-       where TUnitOfWork : UnitOfWorkBase
+       where TUnitOfWork : IUnitOfWork
 {
     private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -105,8 +105,6 @@ public class UnitOfWorkControllerBase<TUnitOfWork> : ControllerBase, IDisposable
             this.afterChangesSavedActions.Clear();
             this.beforeChangesCanceledActions.Clear();
             this.afterChangesCanceledActions.Clear();
-
-            this.UnitOfWork = null;
         }
 
         this.disposed = true;
