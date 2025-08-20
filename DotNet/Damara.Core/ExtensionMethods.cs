@@ -9,6 +9,7 @@ namespace Damara;
 /// </summary>
 public static class ExtensionMethods
 {
+#nullable enable
     /// <summary>
     /// Returns ancestors for the specified type.
     /// </summary>
@@ -16,11 +17,11 @@ public static class ExtensionMethods
     /// <param name="e">The object instance.</param>
     /// <param name="f">A Function returning the property to walk to find the ancestors.</param>
     /// <returns>An enumerable collection of ancestor types.</returns>
-    public static IEnumerable<T> Ancestors<T>(this T e, Func<T, T> f)
+    public static IEnumerable<T> Ancestors<T>(this T e, Func<T, T?> f)
     {
         if (e == null)
         {
-            return null;
+            return null!;
         }
 
         var ancestors = new List<T>() { e };
@@ -33,6 +34,7 @@ public static class ExtensionMethods
 
         return ancestors;
     }
+#nullable disable
 
     /// <summary>
     /// Flattens a tree.
