@@ -3,6 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
 		<LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
 		<Version>5.0.0</Version>
 		<AssemblyVersion>5.0.0</AssemblyVersion>
 		<FileVersion>5.0.0</FileVersion>
