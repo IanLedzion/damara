@@ -11,7 +11,7 @@ namespace Damara.MSTest;
 /// </summary>
 /// <typeparam name="TUnitOfWork">The type of the nit of work base.</typeparam>
 public abstract class TestBase<TUnitOfWork>
-    where TUnitOfWork : UnitOfWorkBase
+    where TUnitOfWork : IUnitOfWork
 {
     /// <summary>
     /// Gets the unit of work.
@@ -22,9 +22,9 @@ public abstract class TestBase<TUnitOfWork>
     /// Tests initialize.
     /// </summary>
     [TestInitialize]
-    public virtual void TestInitialize()
+    public void TestInitialize()
     {
-        this.CreateUnitOfWork();
+        this.UnitOfWork = this.CreateUnitOfWork();
         this.TestInitializeCore();
     }
 
@@ -32,17 +32,16 @@ public abstract class TestBase<TUnitOfWork>
     /// Tests cleanup.
     /// </summary>
     [TestCleanup]
-    public virtual void TestCleanup()
+    public void TestCleanup()
     {
         this.TestCleanupCore();
-        this.UnitOfWork.Dispose();
-        this.UnitOfWork = null;
+        (this.UnitOfWork as IDisposable)?.Dispose();
     }
 
     /// <summary>
     /// Creates the unit of work.
     /// </summary>
-    protected abstract void CreateUnitOfWork();
+    protected abstract TUnitOfWork CreateUnitOfWork();
 
     /// <summary>
     /// Tests initialize core method.

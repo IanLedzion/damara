@@ -2,8 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
