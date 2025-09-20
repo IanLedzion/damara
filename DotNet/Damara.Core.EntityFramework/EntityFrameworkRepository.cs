@@ -82,5 +82,5 @@ public abstract class EntityFrameworkRepository<TDbContext, TUnitOfWork, TEntity
     /// <value>
     /// A collection of entities.
     /// </value>
-    public override IQueryable<TEntity> GetAll() => this.ObjectSet.OfType<TEntity>();
+    public override IEnumerable<TEntity> GetAll() => this.ObjectSet.OfType<TEntity>();
 }

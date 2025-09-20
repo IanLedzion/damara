@@ -40,5 +40,5 @@ public interface IRepository<TEntity>
     /// Gets all the entities in the current repository.
     /// </summary>
     /// <returns>A collection of entities.</returns>
-    public abstract IQueryable<TEntity> GetAll();
+    public abstract IEnumerable<TEntity> GetAll();
 }
