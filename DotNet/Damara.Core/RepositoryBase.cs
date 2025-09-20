@@ -55,5 +55,5 @@ public abstract class RepositoryBase<TUnitOfWork, TEntity> : IRepository<TEntity
     /// <summary>
     /// Gets all the entities in the current repository.
     /// </summary>
-    public abstract IQueryable<TEntity> GetAll();
+    public abstract IEnumerable<TEntity> GetAll();
 }

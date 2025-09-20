@@ -3,20 +3,31 @@
 // </copyright>
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NSubstitute;
 
 namespace Damara.MSTest;
 
 /// <summary>
 /// Base class for tests.
 /// </summary>
-/// <typeparam name="TUnitOfWork">The type of the nit of work base.</typeparam>
+/// <typeparam name="TUnitOfWork">The type of the unit of work base.</typeparam>
 public abstract class TestBase<TUnitOfWork>
-    where TUnitOfWork : IUnitOfWork
+    where TUnitOfWork : class, IUnitOfWork
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TestBase{TUnitOfWork}"/> class.
+    /// </summary>
+    protected TestBase()
+    {
+        var unitOfWork = Substitute.For<TUnitOfWork>();
+        this.ConfigureUnitOfWork(unitOfWork);
+        this.UnitOfWork = unitOfWork;
+    }
+
     /// <summary>
     /// Gets the unit of work.
     /// </summary>
-    protected TUnitOfWork UnitOfWork { get; private set; }
+    protected TUnitOfWork UnitOfWork { get; }
 
     /// <summary>
     /// Tests initialize.
@@ -24,7 +35,6 @@ public abstract class TestBase<TUnitOfWork>
     [TestInitialize]
     public void TestInitialize()
     {
-        this.UnitOfWork = this.CreateUnitOfWork();
         this.TestInitializeCore();
     }
 
@@ -39,9 +49,12 @@ public abstract class TestBase<TUnitOfWork>
     }
 
     /// <summary>
-    /// Creates the unit of work.
+    /// Configures the unit of work.
     /// </summary>
-    protected abstract TUnitOfWork CreateUnitOfWork();
+    /// <param name="unitOfWork">The unit of work.</param>
+    protected virtual void ConfigureUnitOfWork(TUnitOfWork unitOfWork)
+    {
+    }
 
     /// <summary>
     /// Tests initialize core method.
