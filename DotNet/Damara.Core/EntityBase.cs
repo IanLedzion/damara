@@ -9,7 +9,6 @@ namespace Damara;
 /// <summary>
 /// Provides a base class from which all entities are derived.
 /// </summary>
-[JsonObject(memberSerialization: MemberSerialization.OptIn)]
 public abstract class EntityBase
 {
     private static long createSequence;

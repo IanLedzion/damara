@@ -3,7 +3,6 @@
 // </copyright>
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using NSubstitute;
 
 namespace Damara.MSTest;
 
@@ -19,9 +18,7 @@ public abstract class TestBase<TUnitOfWork>
     /// </summary>
     protected TestBase()
     {
-        var unitOfWork = Substitute.For<TUnitOfWork>();
-        this.ConfigureUnitOfWork(unitOfWork);
-        this.UnitOfWork = unitOfWork;
+        this.UnitOfWork = this.CreateUnitOfWork();
     }
 
     /// <summary>
@@ -49,12 +46,10 @@ public abstract class TestBase<TUnitOfWork>
     }
 
     /// <summary>
-    /// Configures the unit of work.
+    /// Creates the unit of work.
     /// </summary>
-    /// <param name="unitOfWork">The unit of work.</param>
-    protected virtual void ConfigureUnitOfWork(TUnitOfWork unitOfWork)
-    {
-    }
+    /// <returns>The unit of work.</returns>
+    protected abstract TUnitOfWork CreateUnitOfWork();
 
     /// <summary>
     /// Tests initialize core method.
