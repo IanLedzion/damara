@@ -1,0 +1,1093 @@
+<#
+// Generates Repositories and a Unit of Work for EF Core model.
+// Copyright (c) 2008-2025 Devart. All rights reserved.
+#>
+<#@ template language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Collections" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="System.Linq" #>
+<#
+  // Output options
+#>
+<#@ property name="DataAccessLayerOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated data access classes for EF Core model." #>
+<#@ property name="DomainServiceOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated domain service classes for EF Core model." #>
+<#@ property name="FactoryOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated factory classes for EF Core model." #>
+<#@ property name="InterfaceLayerOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated interface layer classes." #>
+<#@ property name="ModelNameAsFilesPrefix" category="Output" type="System.Boolean" default="True" description="If it is set to True, then the main model file name will be used as a prefix for the names of the repository files generated for entities." #>
+<#@ property name="RepositoryOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated repository classes for EF Core model." #>
+<#@ property name="ValidationOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated domain service classes for EF Core model." #>
+<#
+  // Generation options
+#>
+<#@ property name="DataAccessLayerNamespace" category="Generation" type="System.String" description="Specifies namespace for the generated data access layer classes for EF Core model." #>
+<#@ property name="DomainServiceNamespace" category="Generation" type="System.String" description="Specifies namespace for the generated domain services classes for EF Core model." #>
+<#@ property name="FactoryNamespace" category="Generation" type="System.String" description="Specifies namespace for the generated factory classes for EF Core model." #>
+<#@ property name="HeaderTimestampVersionControlTag" category="Generation" type="System.String" description="If this option is set, the standard date/time-stamp in the file header will be replaced with the specified tag (e.g. a version control tag for Subversion, Git, etc.)" #>
+<#@ property name="MockUnitOfWorkNamespace" category="Generation" type="System.String" description="Specifies namespace for the generated mock unit of work." #>
+<#@ property name="RepositoryNamespace" category="Generation" type="System.String" description="Specifies namespace for the generated repository classes for EF Core model." #>
+<#@ property name="UnitOfWorkName" category="Generation" type="System.String" description="Specifies name for the generated unit of work classes for EF Core model." #>
+<#@ property name="ValidationNamespace" category="Generation" type="System.String" description="Specifies namespace for the generated validation classes for EF Core model." #>
+<#
+  // extended options for model objects
+#>
+<#@ extended name="GenerateRepository" owner="Class" type="System.Boolean" default="True" description="Defines whether to generate interface and repository class for entity in case of non-generic repository pattern implementation generation." #>
+<#
+  // Settings
+  output.Extension = ".cs";
+  string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+  string dataAccessLayerNamespace = !string.IsNullOrEmpty(DataAccessLayerNamespace) ? codeProvider.GetValidIdentifier(DataAccessLayerNamespace) : defaultNamespace;
+  string domainServiceNamespace = !string.IsNullOrEmpty(DomainServiceNamespace) ? codeProvider.GetValidIdentifier(DomainServiceNamespace) : defaultNamespace;
+  string factoryNamespace = !string.IsNullOrEmpty(FactoryNamespace) ? codeProvider.GetValidIdentifier(FactoryNamespace) : defaultNamespace;
+  string repositoryNamespace = !string.IsNullOrEmpty(RepositoryNamespace) ? codeProvider.GetValidIdentifier(RepositoryNamespace) : defaultNamespace;
+  string validationNamespace = !string.IsNullOrEmpty(ValidationNamespace) ? codeProvider.GetValidIdentifier(ValidationNamespace) : defaultNamespace;
+
+  // IUnitOfWork interface generation
+  GenerateIUnitOfWork(dataAccessLayerNamespace, repositoryNamespace, factoryNamespace, domainServiceNamespace, UnitOfWorkName);
+
+  // IUnitOfWorkFactory interface generation
+  GenerateIUnitOfWorkFactory(dataAccessLayerNamespace, UnitOfWorkName);
+
+  // Repository interface generation
+  GenerateEntityRepositoryInterfaces(repositoryNamespace, defaultNamespace);
+
+  // UnitOfWork class generation for model
+  GenerateEntityFrameworkUnitOfWork(dataAccessLayerNamespace, repositoryNamespace, factoryNamespace, domainServiceNamespace, UnitOfWorkName);
+
+  // UnitOfWorkFactory class generation for model
+  GenerateEntityFrameworkUnitOfWorkFactory(dataAccessLayerNamespace, UnitOfWorkName);
+
+  // Repository class generation
+  GenerateEntityRepositoryClasses(repositoryNamespace, defaultNamespace, UnitOfWorkName, dataAccessLayerNamespace);
+
+  // Factory class generation
+  GenerateEntityFactoryClasses(factoryNamespace, defaultNamespace, UnitOfWorkName, dataAccessLayerNamespace);
+
+  // Domain service class generation
+  GenerateEntityDomainServiceClasses(domainServiceNamespace, defaultNamespace, UnitOfWorkName, dataAccessLayerNamespace);
+
+  // Validation class generation
+  GenerateEntityValidationClasses(validationNamespace, defaultNamespace, UnitOfWorkName, dataAccessLayerNamespace);
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // IUnitOfWork interface generation
+  //------------------------------------------------------------------------------
+  private void GenerateIUnitOfWork(string _namespace, string repositoryNamespace, string factoryNamespace, string domainServiceNamespace, string unitOfWorkName)
+  {
+     var rootFileName = "I" + unitOfWorkName;
+     output.PushOutputRedirection(DataAccessLayerOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides the contract for the unit of work.
+/// </summary>
+public partial interface I<#= unitOfWorkName #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+#>
+using System;
+<#+
+    if (!string.Equals(_namespace, repositoryNamespace))
+    {
+#>
+using <#= repositoryNamespace #>;
+<#+
+    }
+    
+    if (!string.Equals(_namespace, factoryNamespace))
+    {
+#>
+using <#= factoryNamespace #>;
+<#+
+    }
+    
+    if (!string.Equals(_namespace, domainServiceNamespace))
+    {
+#>
+using <#= domainServiceNamespace #>;
+<#+
+    }
+#>
+
+namespace <#= _namespace #>;
+public partial interface I<#= unitOfWorkName #> : Damara.IUnitOfWork, IDisposable
+{
+    // Repositories
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateRepository")).OrderBy(c => c.Name))
+    {
+      string repositoryInterfaceName = "I" + cls.Name + "Repository";
+        #>
+    <#= repositoryInterfaceName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>Repository { get; }
+<#+
+    }
+#>
+
+    // Factories
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateFactory")).OrderBy(c => c.Name))
+    {
+      string factoryName = cls.Name + "Factory";
+        #>
+    <#= factoryName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>Factory { get; }
+<#+
+    }
+#>
+
+    // Domain services
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService")).OrderBy(c => c.Name))
+    {
+      string domainServiceName = cls.Name + "DomainService";
+        #>
+    <#= domainServiceName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>DomainService { get; }
+<#+
+    }
+#>
+}
+<#+
+    output.PopOutputRedirection();
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // IUnitOfWorkFactory interface generation
+  //------------------------------------------------------------------------------
+  private void GenerateIUnitOfWorkFactory(string _namespace, string unitOfWorkName)
+  {
+     var rootFileName = "I" + unitOfWorkName + "Factory";
+     output.PushOutputRedirection(DataAccessLayerOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides the contract for the unit of work factory.
+/// </summary>
+public partial interface I<#= unitOfWorkName #>Factory
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+#>
+namespace <#= _namespace #>;
+
+public partial interface I<#= unitOfWorkName #>Factory
+{
+    I<#= unitOfWorkName #> Create();
+}
+<#+
+    output.PopOutputRedirection();
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // EntityFrameworkUnitOfWork class generation
+  //------------------------------------------------------------------------------
+  private void GenerateEntityFrameworkUnitOfWork(string _namespace, string repositoryNamespace, string factoryNamespace, string domainServiceNamespace, string unitOfWorkName)
+  {
+     var rootFileName = unitOfWorkName;
+     output.PushOutputRedirection(DataAccessLayerOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// The unit of work.
+/// </summary>
+public partial class <#= unitOfWorkName #> : I<#= unitOfWorkName #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+    string contextClassName = codeProvider.GetValidIdentifier(model.Name);
+    string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+    if (!string.Equals(_namespace, contextNamespace))
+      contextClassName = contextNamespace + "." + contextClassName;
+#>
+using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+<#+
+    if (!string.Equals(_namespace, repositoryNamespace))
+    {
+#>
+using <#= repositoryNamespace #>;
+<#+
+    }
+    
+    if (!string.Equals(_namespace, factoryNamespace))
+    {
+#>
+using <#= factoryNamespace #>;
+<#+
+    }
+    
+    if (!string.Equals(_namespace, domainServiceNamespace))
+    {
+#>
+using <#= domainServiceNamespace #>;
+<#+
+    }
+#>
+
+namespace <#= _namespace #>;
+public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFrameworkUnitOfWork<<#= contextClassName #>>
+{
+    // Repositories
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateRepository")).OrderBy(c => c.Name))
+    {
+        string repositoryInterfaceName = "I" + cls.Name + "Repository";
+        string repositoryFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "Repository");
+#>
+    <#= repositoryInterfaceName #> <#= repositoryFieldName #>;
+<#+
+    }
+#>
+
+    // Factories
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateFactory")).OrderBy(c => c.Name))
+    {
+        string factoryName = cls.Name + "Factory";
+        string factoryFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "Factory");
+#>
+    <#= factoryName #> <#= factoryFieldName #>;
+<#+
+    }
+#>
+
+    // Domain services
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService")).OrderBy(c => c.Name))
+    {
+        string domainServiceName = cls.Name + "DomainService";
+        string domainServiceFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "DomainService");
+#>
+    <#= domainServiceName #> <#= domainServiceFieldName #>;
+<#+
+    }
+#>
+
+    public <#= unitOfWorkName #>()
+        : this(new <#= contextClassName #>())
+    {
+    }
+
+    public <#= unitOfWorkName #>(<#= contextClassName #> context)
+        : base(context)
+    {
+        this.OnCreated();
+    }
+
+    // Repositories
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateRepository")).OrderBy(c => c.Name))
+    {
+      string repositoryInterfaceName = "I" + cls.Name + "Repository";
+      string repositoryClassName = cls.Name + "Repository";
+      string repositoryFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "Repository");
+      string repositoryPropertyName = codeProvider.GetValidIdentifier(cls.Name) + "Repository";
+#>
+
+    public <#= repositoryInterfaceName #> <#= repositoryPropertyName #>
+    {
+        get
+        {
+            this.<#= repositoryFieldName #> ??= new <#= repositoryClassName #>(this);
+            return this.<#= repositoryFieldName #>;
+        }
+    }
+<#+
+    }
+#>
+
+    // Factories
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateFactory")).OrderBy(c => c.Name))
+    {
+      string factoryClassName = cls.Name + "Factory";
+      string factoryFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "Factory");
+      string factoryPropertyName = codeProvider.GetValidIdentifier(cls.Name) + "Factory";
+#>
+
+    public <#= factoryClassName #> <#= factoryPropertyName #>
+    {
+        get
+        {
+            this.<#= factoryFieldName #> ??= new <#= factoryClassName #>(this);
+            return this.<#= factoryFieldName #>;
+        }
+    }
+<#+
+    }
+#>
+
+    // Domain services
+<#+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService")).OrderBy(c => c.Name))
+    {
+      string domainServiceClassName = cls.Name + "DomainService";
+      string domainServiceFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "DomainService");
+      string domainServicePropertyName = codeProvider.GetValidIdentifier(cls.Name) + "DomainService";
+#>
+
+    public <#= domainServiceClassName #> <#= domainServicePropertyName #>
+    {
+        get
+        {
+            this.<#= domainServiceFieldName #> ??= new <#= domainServiceClassName #>(this);
+            return this.<#= domainServiceFieldName #>;
+        }
+    }
+<#+
+    }
+#>
+
+    // Partial methods
+    partial void OnCreated();
+}
+<#+
+    output.PopOutputRedirection();
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // EntityFrameworkUnitOfWorkFactory class generation
+  //------------------------------------------------------------------------------
+  private void GenerateEntityFrameworkUnitOfWorkFactory(string _namespace, string unitOfWorkName)
+  {
+     var rootFileName = unitOfWorkName + "Factory";
+     output.PushOutputRedirection(DataAccessLayerOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// The unit of work factory.
+/// </summary>
+public partial class <#= unitOfWorkName #>Factory : I<#= unitOfWorkName #>Factory
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+    string contextClassName = codeProvider.GetValidIdentifier(model.Name);
+    string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+    if (!string.Equals(_namespace, contextNamespace))
+      contextClassName = contextNamespace + "." + contextClassName;
+#>
+using System;
+using Microsoft.EntityFrameworkCore;
+
+namespace <#= _namespace #>;
+public partial class <#= unitOfWorkName #>Factory
+{
+    private string connectionString;
+
+    public VertxRepoUnitOfWorkFactory(string connectionString)
+    {
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(connectionString);
+        this.connectionString = connectionString;
+    }
+    
+    public virtual I<#= unitOfWorkName #> Create()
+    {
+        var context = new <#= contextClassName #>();
+        context.Database.SetConnectionString(connectionString);
+        return new <#= unitOfWorkName #>(context);
+    }
+}
+<#+
+    output.PopOutputRedirection();
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // Generation repository interfaces for entities
+  //------------------------------------------------------------------------------
+  private void GenerateEntityRepositoryInterfaces(string _namespace, string defaultModelNamespace)
+  {
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateRepository")).OrderBy(c => c.Name))
+    {
+      string rootFileName  = "I" + cls.Name + "Repository";
+      string fullClassName = codeProvider.GetValidIdentifier(cls.Name);
+      string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
+      if (!string.Equals(_namespace, classNamespace))
+        fullClassName = classNamespace + "." + fullClassName;
+
+        output.PushOutputRedirection(RepositoryOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides the contract for the <see cref="<#= cls.Name #>" /> repository.
+/// </summary>
+public partial interface I<#= cls.Name #>Repository
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(RepositoryOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(false);
+#>
+using System;
+using System.Collections.Generic;
+
+namespace <#= _namespace #>;
+public partial interface I<#= cls.Name #>Repository : IRepository<<#= fullClassName #>>
+{
+<#+
+       var wellKnownIdentifiers = (string)cls.GetProperty("WellKnowIdentifiers");
+       if (!string.IsNullOrEmpty(wellKnownIdentifiers))
+       {
+         var ids = wellKnownIdentifiers.Split(',').Select(id => id.Split('=')[0]).OrderBy(id => id);
+         foreach (var id in ids)
+         {
+#>
+    /// <summary>
+    /// Gets the <#= id #>.
+    /// </summary>
+    <#= cls.Name #> <#= id #> { get; }
+
+<#+
+         }
+       }
+
+      if (cls.AllProperties.Any(p => p.PrimaryKey)) {
+        List<string> lst = new List<string>();
+        foreach (EntityProperty prop in cls.AllProperties.Where(p => p.PrimaryKey)) {
+          string propertyDataType = GetPropertyType(prop, _namespace);
+          lst.Add(string.Format("{0} _{1}", propertyDataType, prop.Name));
+        }
+#>
+    <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>);
+<#+
+    }
+#>
+}
+<#+
+      output.PopOutputRedirection();
+    }
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // Generation repository classes for repositories
+  //------------------------------------------------------------------------------
+  private void GenerateEntityRepositoryClasses(string _namespace, string defaultModelNamespace, string unitOfWorkName, string unitOfWorkNamespace)
+  {
+    string contextClassName = codeProvider.GetValidIdentifier(model.Name);
+    string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? model.ContextNamespace : defaultModelNamespace;
+    if (contextNamespace != _namespace)
+      contextClassName = codeProvider.GetValidIdentifier(contextNamespace) + "." + contextClassName;
+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateRepository")).OrderBy(c => c.Name)) {
+      string rootFileName = ModelNameAsFilesPrefix ? model.FileName + "." + cls.Name + "Repository" : cls.Name + "Repository";
+
+      string fullClassName = codeProvider.GetValidIdentifier(cls.Name);
+      string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
+      if (!string.Equals(_namespace, classNamespace))
+        fullClassName = classNamespace + "." + fullClassName;
+
+        output.PushOutputRedirection(RepositoryOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides a repository for the <see cref="<#= cls.Name #>" /> class.
+/// </summary>
+public partial class <#= cls.Name #>Repository : I<#= cls.Name #>Repository
+{
+}
+<#+
+        output.PopOutputRedirection();
+
+        output.PushOutputRedirection(RepositoryOutput, rootFileName, rootFileName + ".Generated");
+        GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public partial class <#= cls.Name #>Repository : Damara.EntityFramework.EntityFrameworkRepository<<#= contextClassName #>, <#= unitOfWorkName #>, <#= fullClassName #>>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= cls.Name #>Repository"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    internal <#= cls.Name #>Repository(<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+    }
+
+<#+
+       var wellKnownIdentifiers = (string)cls.GetProperty("WellKnowIdentifiers");
+       if (!string.IsNullOrEmpty(wellKnownIdentifiers))
+       {
+         var ids = wellKnownIdentifiers.Split(',').Select(id => id.Split('=')[0]).OrderBy(id => id);
+         foreach (var id in ids)
+         {
+#>
+    /// <summary>
+    /// Gets the <#= id #>.
+    /// </summary>
+    public <#= cls.Name #> <#= id #> => this.GetById(<#= cls.Name #>.Ids.<#= id #>);
+
+<#+
+         }
+       }
+
+      if (cls.AllProperties.Any(p => p.PrimaryKey)) {
+        List<string> lst = new List<string>();
+        foreach (EntityProperty prop in cls.AllProperties.Where(p => p.PrimaryKey)) {
+          string propertyDataType = GetPropertyType(prop, _namespace);
+          lst.Add(string.Format("{0} {1}", propertyDataType, FirstCharToLowerCase(prop.Name)));
+        }
+#>
+<#+
+            List<string> condition = new List<string>();
+            foreach (Property prop in cls.AllProperties.Where(p => p.PrimaryKey))
+              condition.Add(string.Format("e.{0} == {1}", prop.Name, FirstCharToLowerCase(prop.Name)));
+#>
+    /// <summary>
+    /// Gets the entity by identifier.
+    /// </summary>
+    /// <returns>The entity, or null if none was found</returns>
+    public virtual <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>) => this.ObjectSet.SingleOrDefault(e => <#= codeProvider.Join(" && ", condition.ToArray()) #>);
+<#+
+      }
+#>
+}
+<#+
+      output.PopOutputRedirection();
+    }
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // Generation factory classes for entities
+  //------------------------------------------------------------------------------
+  private void GenerateEntityFactoryClasses(string _namespace, string defaultModelNamespace, string unitOfWorkName, string unitOfWorkNamespace)
+  {
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateFactory")).OrderBy(c => c.Name))
+    {    
+      string rootFileName  = cls.Name + "Factory";
+      string fullClassName = codeProvider.GetValidIdentifier(cls.Name);
+      string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
+      if (!string.Equals(_namespace, classNamespace))
+        fullClassName = classNamespace + "." + fullClassName;
+
+      var privateFactoryMethod = (bool)cls.GetProperty("PrivateDefaultCreateMethod");
+      var factoryMethodAccessModifier = privateFactoryMethod ? "private" : "public";
+
+      var createParameters = new List<string>();
+      var setStatements = new List<string>();
+
+      var baseClasses = GetBaseInheritahceHierarchy(cls).Reverse();
+  
+      foreach(var baseClass in baseClasses)
+      {
+          foreach (EntityProperty property in baseClass.Properties.Where(prop => !(bool)prop.GetProperty("GenerateFactoryParameter")))
+          {
+              var defaultValue = (string)property.GetProperty("DefaultValue");
+              if(string.IsNullOrEmpty(defaultValue))
+              {
+                continue;
+              }
+          
+              setStatements.Add(string.Format("entity.{0} = {1}", property.Name, defaultValue));
+          }
+  
+          foreach (EntityProperty property in baseClass.Properties.Where(prop => (bool)prop.GetProperty("GenerateFactoryParameter")))
+          {
+              var propDefaultValue = (string)property.GetProperty("DefaultValue");
+              createParameters.Add(GetPropertyParameterType(property, _namespace) + " " + FirstCharToLowerCase(property.Name));
+              if(GetPropertyIsValueType(property))
+              {
+                 var defaultValue = string.IsNullOrEmpty(propDefaultValue) ? ("default(" + GetPropertyType(property, _namespace) + ")") : propDefaultValue;
+                 setStatements.Add(string.Format("entity.{0} = {1}.HasValue ? {1}.Value : {2}", property.Name, FirstCharToLowerCase(property.Name), defaultValue));
+              }
+              else
+              {
+                 var defaultValue = string.IsNullOrEmpty(propDefaultValue) ? ("default(" + GetPropertyType(property, _namespace) + ")") : propDefaultValue;
+                 setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : {2}", property.Name, FirstCharToLowerCase(property.Name), defaultValue));
+              }
+          }
+  
+          foreach (EntityRelationProperty relationProperty in baseClass.RelationProperties.Where(prop => prop.Generate && (prop.Multiplicity == Multiplicity.ZeroOrOne || prop.Multiplicity == Multiplicity.One) && (bool)prop.GetProperty("GenerateFactoryParameter")))
+          {
+              var typeName = GetRelationPropertyTypeName(relationProperty, _namespace, defaultModelNamespace);
+              createParameters.Add(typeName + " " + FirstCharToLowerCase(relationProperty.Name));
+              setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : default", relationProperty.Name, FirstCharToLowerCase(relationProperty.Name)));
+          }
+  
+          foreach (EntityRelationProperty relationProperty in baseClass.RelationProperties.Where(prop => prop.Generate && (prop.Multiplicity == Multiplicity.ZeroOrOne || prop.Multiplicity == Multiplicity.One) && !(bool)prop.GetProperty("GenerateFactoryParameter")))
+          {
+              var defaultValue = (string)relationProperty.GetProperty("DefaultValue");
+              if(string.IsNullOrEmpty(defaultValue))
+              {
+                continue;
+              }
+          
+              setStatements.Add(string.Format("entity.{0} = {1}", relationProperty.Name, defaultValue));
+          }
+      }
+
+    output.PushOutputRedirection(FactoryOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides methods for creating instances of the <see cref="<#= cls.Name #>" /> class.
+/// </summary>
+public partial class <#= cls.Name #>Factory
+{
+}
+<#+
+      output.PopOutputRedirection();
+
+      output.PushOutputRedirection(FactoryOutput, rootFileName, rootFileName + ".Generated");
+      GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public partial class <#= cls.Name #>Factory : Damara.FactoryBase<I<#= unitOfWorkName #>, <#= fullClassName #>>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= cls.Name #>Factory"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    internal <#= cls.Name #>Factory(I<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+    }
+
+    <#= factoryMethodAccessModifier #> <#= fullClassName #> Create(<#= (createParameters.Count == 0 ? ")" : string.Empty) #>
+<#+
+    for (var i = 0; i < createParameters.Count; i++)
+    {
+        var createParameter = createParameters[i];
+#>
+        <#= createParameter #> = default<#= (i == createParameters.Count - 1 ? ")" : ",") #>
+<#+
+    }
+#>
+    {
+        var entity = new <#= fullClassName #>();
+
+<#+
+    for (var i = 0; i < setStatements.Count; i++)
+    {
+        var setStatement = setStatements[i];
+#>
+        <#= setStatement #>;
+<#+
+    }
+#>
+
+        this.UnitOfWork.<#= cls.Name #>Repository.Add(entity);
+
+        this.OnEntityCreated(entity);
+
+        return entity;
+    }
+
+    /// <summary>
+    /// Called when the entity has been created.
+    /// </summary>
+    /// <param name="entity">The entity.</param>
+    partial void OnEntityCreated(<#= fullClassName #> entity);
+}
+<#+
+      output.PopOutputRedirection();
+    }
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // Generation domain service classes for entities
+  //------------------------------------------------------------------------------
+  private void GenerateEntityDomainServiceClasses(string _namespace, string defaultModelNamespace, string unitOfWorkName, string unitOfWorkNamespace)
+  {
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService")))
+    {
+      string rootFileName  = cls.Name + "DomainService";
+      string fullClassName = codeProvider.GetValidIdentifier(cls.Name);
+      string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
+      if (!string.Equals(_namespace, classNamespace))
+        fullClassName = classNamespace + "." + fullClassName;
+
+        output.PushOutputRedirection(DomainServiceOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Domain service for the <see cref="<#= cls.Name #>"/> aggregate.
+/// </summary>
+public partial class <#= cls.Name #>DomainService
+{
+}
+<#+
+      output.PopOutputRedirection();
+
+      output.PushOutputRedirection(DomainServiceOutput, rootFileName, rootFileName + ".Generated");
+      GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public partial class <#= cls.Name #>DomainService : Damara.DomainServiceBase<I<#= unitOfWorkName #>>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= cls.Name #>DomainService"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    internal <#= cls.Name #>DomainService(I<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+    }
+}
+<#+
+      output.PopOutputRedirection();
+    }
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // Validation class generation
+  //------------------------------------------------------------------------------
+  private void GenerateEntityValidationClasses(string _namespace, string defaultModelNamespace, string unitOfWorkName, string unitOfWorkNamespace)
+  { 
+    foreach (EntityClass cls in model.Classes.Where(cls => (bool)cls.GetProperty("GenerateValidator")))
+    {
+      string rootFileName  = cls.Name + "Validator";
+      string fullClassName = codeProvider.GetValidIdentifier(cls.Name);
+      string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
+      if (!string.Equals(_namespace, classNamespace))
+        fullClassName = classNamespace + "." + fullClassName;
+
+        string validatorClassName = string.Format("{0}Validator", cls.Name);
+
+        string validatorGenericArguments = null;
+        string validatorGenericCrefName = null;
+        string validatorGenericConstraints = null;
+
+        if(HasDescendents(cls))
+        {
+            validatorGenericArguments = string.Format("<T{0}>", cls.Name);
+            validatorGenericCrefName = string.Format("{{T{0}}}", cls.Name);
+            validatorGenericConstraints = string.Format("where T{0} : {0}", cls.Name);
+        }
+
+        string validatorBaseClassName = null;
+        string validatorCtorVisibility = null;
+
+        if(cls.BaseInheritance == null)
+        {
+            if(HasDescendents(cls))
+            {
+                validatorBaseClassName = string.Format("Damara.EntityValidator<T{0}, {1}>", unitOfWorkName, cls.Name);
+                validatorCtorVisibility = "protected";
+            }
+            else
+            {
+                validatorBaseClassName = string.Format("Damara.EntityValidator<I{0}, {1}>", unitOfWorkName, cls.Name);
+                validatorCtorVisibility = "public";
+            }
+        }
+        else
+        {
+            if(HasDescendents(cls))
+            {
+                validatorBaseClassName = string.Format("{0}Validator<{1}>", cls.BaseInheritance.BaseClass.Name ,cls.Name);
+                validatorCtorVisibility = "protected";
+            }
+            else
+            {
+                validatorBaseClassName = string.Format("{0}Validator<{1}>", cls.BaseInheritance.BaseClass.Name ,cls.Name);
+                validatorCtorVisibility = "public";
+            }
+        }
+
+        // Factory partial class, generated only once
+        output.PushOutputRedirection(ValidationOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides validation for the <see cref="<#= cls.Name #>"/> class.
+/// </summary>
+public partial class <#= validatorClassName #><#= validatorGenericArguments #> : <#= validatorBaseClassName #>
+    <#= validatorGenericConstraints #>
+{
+}
+<#+
+      output.PopOutputRedirection();
+
+      output.PushOutputRedirection(ValidationOutput, rootFileName, rootFileName + ".Generated");
+      GenerateFileHeader(true);
+#>
+using <#= defaultModelNamespace #>;
+using <#= unitOfWorkNamespace #>;
+
+namespace <#= _namespace #>;
+public partial class <#= validatorClassName #><#= validatorGenericArguments #> : <#= validatorBaseClassName #> 
+    <#= validatorGenericConstraints #>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= cls.Name #>Validator<#= validatorGenericCrefName #>"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    <#= validatorCtorVisibility #> <#= validatorClassName #>(I<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+<#+
+var validationProperties = cls
+  .Properties
+  .OfType<EntityProperty>()
+  .Where(p => !p.IsComplexType && (p.GetterModifier == MemberAccess.Public || p.GetterModifier == MemberAccess.Internal))
+  .ToArray();
+
+  foreach (EntityProperty property in validationProperties)
+  {
+    var builder = new StringBuilder();
+    var cascadeStop = false;
+
+    // Nullable
+    if(!property.Nullable)
+    {
+      builder.Append(".NotNull()");
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_NotNull\")", cls.Name, property.Name));
+      cascadeStop = true;
+    }
+
+    // Required
+    if(property.ValidateRequired)
+    {
+      builder.Append(".NotEmpty()");
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_Required\")", cls.Name, property.Name));
+      cascadeStop = true;
+    }
+
+    // Min Value
+    if(!string.IsNullOrWhiteSpace(property.ValidateMinValue))
+    {
+      builder.AppendFormat(".GreaterThanOrEqualTo({0})", property.ValidateMinValue);
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_GreaterThanOrEqualTo\")", cls.Name, property.Name));
+    }
+
+    // Max Value
+    if(!string.IsNullOrWhiteSpace(property.ValidateMaxValue))
+    {
+      builder.AppendFormat(".LessThanOrEqualTo({0})", property.ValidateMaxValue);
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_LessThanOrEqualTo\")", cls.Name, property.Name));
+    }
+
+    // Min Length
+    if(property.ValidateMinLength != null)
+    {
+      builder.AppendFormat(".MinimumLength({0})", property.ValidateMinLength);
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_MinimumLength\")", cls.Name, property.Name));
+    }
+
+    // Max Length
+    if(property.ValidateMaxLength != null)
+    {
+      builder.AppendFormat(".MaximumLength({0})", property.ValidateMaxLength);
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_MaximumLength\")", cls.Name, property.Name));
+    }
+
+    // Regular Expression
+    if(!string.IsNullOrWhiteSpace(property.ValidateExpression))
+    {
+      builder.AppendFormat(".Matches(\"{0}\")", property.ValidateExpression);
+      builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_Matches\")", cls.Name, property.Name));
+    }
+
+    // Validation Format
+    switch (property.ValidateFormat)
+    {
+      case EntityDeveloper.ValidationFormat.Email:
+        builder.Append(".InternationalEmailAddress()");
+        builder.Append(string.Format(".When(e => !string.IsNullOrEmpty(e.{0}), ApplyConditionTo.CurrentValidator)", property.Name));
+        builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_EmailAddressFormat\")", cls.Name, property.Name));
+        break;
+
+      case EntityDeveloper.ValidationFormat.IPAddress:
+        builder.Append(".Must(e => IPAddress.TryParse(e, out IPAddress ipAddressParseTest))");
+        builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_IPAddressFormat\")", cls.Name, property.Name));
+        break;
+
+      case EntityDeveloper.ValidationFormat.Numeric:
+        builder.Append(".Must(e => decimal.TryParse(e, out decimal decimalParseTest))");
+        builder.Append(string.Format(".WithErrorCode(\"{0}_{1}_NumericFormat\")", cls.Name, property.Name));
+        break;
+
+      default:
+        break;
+    }
+#>
+        this.RuleFor(p => p.<#= property.Name #>)<#= cascadeStop ? ".Cascade(CascadeMode.Stop)" : string.Empty #><#= builder.ToString() #>;
+<#+
+  }
+#>
+
+        this.OnCreated();
+    }
+
+    partial void OnCreated();
+}
+<#+
+      output.PopOutputRedirection();
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  //  files header generation
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateFileHeader(bool isAutoGenerated)
+  {
+#>
+<#+
+  if (isAutoGenerated) {
+#>
+// <auto-generated />
+//------------------------------------------------------------------------------
+// This is auto-generated code.
+<#+
+  }
+#>
+//------------------------------------------------------------------------------
+// This code was generated by Entity Developer tool using the template for generating Repositories and a Unit of Work for EF Core model.
+// <#= String.IsNullOrEmpty(HeaderTimestampVersionControlTag) ? "Code is generated on: " + DateTime.Now : HeaderTimestampVersionControlTag #>
+//
+<#+
+  if (isAutoGenerated) {
+#>
+// Changes to this file may cause incorrect behavior and will be lost if
+// the code is regenerated.
+<#+
+  }
+#>
+//------------------------------------------------------------------------------
+<#+
+  }
+#>
+<#+
+  // Method GetPropertyType
+  private string GetPropertyType(Property prop, string _namespace) {
+    string propertyDataType = string.Empty;
+    if (prop.Type is ICodeElement) {
+      propertyDataType = codeProvider.GetValidIdentifier(((ICodeElement)prop.Type).Name);
+      if (!(prop.IsEnumType && ((EnumType)prop.Type).IsExternal && string.IsNullOrEmpty(((ICodeElement)prop.Type).Namespace))) {
+        string nspace = !string.IsNullOrEmpty(((ICodeElement)prop.Type).Namespace) ? ((ICodeElement)prop.Type).Namespace : model.GetDefaultNamespace();
+        if (nspace != _namespace)
+          propertyDataType = codeProvider.GetValidIdentifier(nspace) + "." + propertyDataType;
+      }
+      if (prop.IsEnumType && prop.Nullable)
+        propertyDataType = codeProvider.FormatNullable(propertyDataType);
+    }
+    else
+      propertyDataType = codeProvider.GetNullableType(prop.Nullable, prop.Type);
+    return propertyDataType;
+  }
+  
+  // Method GetPropertyParameterType
+  private string GetPropertyParameterType(Property prop, string _namespace)
+  {
+    string propertyDataType = string.Empty;
+    var codeElementProp = prop.Type as ICodeElement;
+    if (codeElementProp != null)
+    {
+      propertyDataType = codeProvider.GetValidIdentifier(codeElementProp.Name);
+      if (!(prop.IsEnumType && ((EnumType)prop.Type).IsExternal && string.IsNullOrEmpty(codeElementProp.Namespace)))
+      {
+        string nspace = !string.IsNullOrEmpty(codeElementProp.Namespace) ? codeElementProp.Namespace : model.GetDefaultNamespace();
+        if (nspace != _namespace)
+          propertyDataType = codeProvider.GetValidIdentifier(nspace) + "." + propertyDataType;
+      }
+    }
+    else
+    {
+      propertyDataType = codeProvider.GetNullableType(true, prop.Type);
+    }
+    return propertyDataType;
+  }
+
+  // Method GetPropertyIsValueType
+  private bool GetPropertyIsValueType(Property prop)
+  {
+      if(prop.Type is EntityDeveloper.EntityFrameworkCore.EntityDataType)
+      {
+         var propType = Type.GetType("System." + prop.Type.ToString());
+         if(propType == null)
+         {
+           return false;
+         }
+
+         return propType.IsValueType;
+      }
+
+    return false;
+  }
+
+  // Method GetRelationPropertyTypeName
+  private string GetRelationPropertyTypeName(EntityRelationProperty relationProperty, string parentNamespace, string defaultNamespace) {
+
+    BaseClass relationClass = relationProperty.RelationClass;
+    string relationClassName = codeProvider.GetValidIdentifier(relationClass.Name);
+    string nspace = !string.IsNullOrEmpty(relationClass.Namespace) ? codeProvider.GetValidIdentifier(relationClass.Namespace) : defaultNamespace;
+    if (nspace != parentNamespace)
+      relationClassName = nspace + "." + relationClassName;
+
+    return relationClassName;
+  }
+
+  // Method GetRelationPropertyTypeName
+  static string FirstCharToLowerCase(string str)
+  {
+      if ( !string.IsNullOrEmpty(str) && char.IsUpper(str[0]))
+          return str.Length == 1 ? char.ToLower(str[0]).ToString() : char.ToLower(str[0]) + str.Substring(1);
+
+      return str;
+  }
+
+ // Determines whether a class has descendents.
+  private bool HasDescendents(Class cls)
+  {
+     return model.Classes.Cast<Class>().Where(c => c.BaseInheritance != null).Select(c => c.BaseInheritance).Any(bi => bi.BaseClass == cls);
+  }
+
+  // Gets a class' base inheritahce hierarchy
+  private IEnumerable<EntityClass>GetBaseInheritahceHierarchy(EntityClass cls)
+  {
+    var baseClasses = new List<EntityClass>();
+    baseClasses.Add(cls);
+
+    if(cls.BaseInheritance == null)
+    {
+      return baseClasses;
+    }
+
+    baseClasses.AddRange(GetBaseInheritahceHierarchy((EntityClass)cls.BaseInheritance.BaseClass));
+    return baseClasses;
+  }
+#>
