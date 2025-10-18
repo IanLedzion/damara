@@ -1,0 +1,4161 @@
+<#
+// EF Core template for Devart Entity Developer C# code generation.
+// Copyright (c) 2008-2023 Devart. All rights reserved.
+#>
+<#@ template language="C#" #>
+<#@ include file="Validation.tmpl" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Collections" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="EntityDeveloper" #>
+<#@ import namespace="EntityDeveloper.EntityFrameworkCore" #>
+<#@ import namespace="EntityDeveloper.Mapping" #>
+<#
+  // Output options
+#>
+<#@ property name="ContextOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated context." #>
+<#@ property name="EntitiesOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated entity classes. The property can be used, if File Per Class is turned on." #>
+<#@ property name="EnumOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated enums. The property can be used, if File Per Class is turned on." #>
+<#@ property name="FilePerClass" category="Output" default="True" type="System.Boolean" description="If it is set to True, each model class will be placed to the separate file when generating code, otherwise, all model classes will be placed into a single file." #>
+<#@ property name="GeneratePartialClass" category="Output" type="System.Boolean" default="False" description="If it is set to True, then, for each class in the model, a partial class (%ModelName%.%ClassName%.cs) will be generated, in which the user can add code that is not overwritten by the designer. If %ModelName%.%ClassName%.cs was created before, it would be left unchanged. The property can be used, if File Per Class is turned on." #>
+<#@ property name="ModelNameAsFilesPrefix" category="Output" type="System.Boolean" default="True" description="If it is set to True, then the main model file name will be used as a prefix for the names of the files generated for entities. The property can be used, if File Per Class is turned on." #>
+<#
+  // Generation options
+#>
+<#@ property name="HeaderTimestampVersionControlTag" category="Generation" type="System.String" description="If this option is set, the standard date/time-stamp in the file header will be replaced with the specified tag (e.g. a version control tag for Subversion, Git, etc.)" #>
+<#@ property name="PropertyChangeNotifiers" category="Generation" type="System.Boolean" default="False" description="If it is set to True, each model class will implement the INotifyPropertyChanging, INotifyPropertyChanged interfaces." #>
+<#@ property name="PropertyChangePartialMethods" category="Generation" type="System.Boolean" default="False" description="If it is set to True, the extensibility partial void On<property name>Changing and partial void On<property name>Changed methods will be generated. These methods handle changes of each object property." #>
+<#@ property name="ImplementEquals" category="Generation" type="System.Boolean" default="False" description="If it is set to True, each entity class will implement their own Equals and GetHashCode methods." #>
+<#@ property name="ImplementCloneable" category="Generation" type="System.Boolean" default="False" description="If it is set to True, each entity class will implement the ICloneable interface." #>
+<#@ property name="GenerateDummyComments" category="Generation" type="System.Boolean" default="False" description="If it is set to True, then dummy xml comments will be generated for each class and its members." #>
+<#@ property name="GenerateGeneratedCodeAttributes" displayname="Generate GeneratedCode Attributes" category="Generation" type="System.Boolean" default="False" description="Determines whether GeneratedCode attribute should be generated." #>
+<#@ property name="IncludeEnvironmentVariables" category="Generation" type="System.Boolean" default="False" description="Determines whether context configuration will be extended with environment variables when a connection string from the appsettings.json file is used." #>
+<#@ property name="JsonFileBasePath" category="Generation" type="System.String" default="" description="Specifies the base path for file-based providers when a connection string from the appsettings.json file is used. The special reserved value %CurrentDirectory% means that the current working directory of the application is used as the base path." #>
+<#@ property name="PrimitiveDefaultValueGeneration" displayname="Primitive Default Value Generation" category="Generation" type="DefaultValueBehavior" default="Literal" description="Determines whether to generate initialization for a primitive property based on database DEFAULT column value." #>
+<#@ property name="CollectionPropertyType" category="Generation" type="EFCoreCollectionPropertyType" description=".NET type used as a property type for the Many end of associations." #>
+<#@ property name="CollectionInitializationType" category="Generation" type="EFCoreCollectionInitializationType" description=".NET type used for initialization of the Many end of association. If it is set to None, then no initialization is generated." #>
+<#@ property name="NullableReferenceTypes" category="Generation" type="ReferenceTypeNullability" description="Specifies when C# 8.0 nullable reference types and non-nullable reference types must be generated. If it is set to Enable, then nullable annotation context will be enabled. If it is set to Disable, then '#nullable disable' directives will be generated. If it is set to Default, then pre-C# 8.0 classic behavior will be used." #>
+<#
+  // Configuration options
+#>
+<#@ property name="SelfContainedEntityConfiguration" displayName="Self-Contained Entity Configuration" category="Configuration" type="System.Boolean" default="False" description="If it is set to True, the code first configuration of each model entity will be encapsulated in separated configuration classes. This option is supported in EF Core version 2.0 or higher." #>
+<#@ property name="EntitiesConfigurationOutput" category="Configuration" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated entity configuration classes. The property can be used, if Self-Contained Entity Configuration is turned on." #>
+<#
+  // Serialization options
+#>
+<#@ property name="SerializationLibrary" category="Serialization" type="SerializationLibrary" description="Library used for serialization." #>
+<#@ property name="SerializeOriginalColumnNames" category="Serialization" type="System.Boolean" default="False" description="If true, the original column name is generated for serialization. For the Newtonsoft.Json library, the [JsonProperty] attribute is used. For the System.Text.Json library, the [JsonPropertyName] attribute is used. Default value is False." #>
+<#@ property name="SerializeNullValues" category="Serialization" type="System.Boolean" default="True" description="If False, the [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] attribute is generated for nullable properties for the Newtonsoft.Json library. For System.Text.Json, the following attribute is generated: [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]. Default value is True." #>
+<#@ property name="SerializeNavigationProperties" default="All" category="Serialization" type="NavigationPropertySerializationBehavior" description="Specifies when serialization attributes must be generated for navigation properties." #>
+<#@ property name="GenerateSerializableAttributes" category="Serialization" type="System.Boolean" default="False" description="Determines whether Serializable attribute used for the serialization of classes should be generated." #>
+<#@ property name="GenerateDataContracts" displayName="[Obsolete] Generate Data Contracts" category="Obsolete" type="System.Boolean" default="False" description="Determines whether the DataContract/DataMember attributes used for the serialization of entities should be generated. This property is obsolete. Use 'Serialization Library' instead." #>
+<#
+  // extended options for model objects
+#>
+<#@ extended name="DoNotGenerateSerializableAttribute" owner="Class" type="System.Boolean" default="False" description="If it is set to True, then the Serializable attribute will not be generated for the entity class. The property can be used, if the Generate Serializable Attributes property of the template is set to True." #>
+<#@ extended name="DoNotGenerateSerializableAttribute" owner="ComplexType" type="System.Boolean" default="False" description="If it is set to True, then the Serializable attribute will not be generated for the complex type. The property can be used, if the Generate Serializable Attributes property of the template is set to True." #>
+<#@ extended name="DoNotImplementCloneable" owner="Class" type="System.Boolean" default="False" description="If it is set to True, the entity class will not implement the ICloneable interface. The property can be used, if the Implement Cloneable property of the template is set to True." #>
+<#@ extended name="ContextBase" owner="ContextModel" displayName="Base Context Type" type="System.String" description="Base class for the context class." #>
+<#@ extended name="EntityBase" owner="ContextModel" displayName="Base Entity Type" type="System.String" description="Base class or interface for the entity classes." #>
+<#@ extended name="EntityBase" owner="Class" displayName="Base Type" type="System.String" description="Base class or interface for the entity class." #>
+<#@ extended name="ComplexTypeBase" owner="ContextModel" displayName="Base Complex Type" type="System.String" description="Base class or interface for the complex types." #>
+<#@ extended name="ComplexTypeBase" owner="ComplexType" displayName="Base Type" type="System.String" description="Base class or interface for the complex type." #>
+<#@ extended name="ConstructorModifier" owner="Class" type="MemberAccess" Default="Public" description="Determines access for the class constructor." #>
+<#@ extended name="ConstructorModifier" owner="ComplexType" type="MemberAccess" Default="Public" description="Determines access for the class constructor." #>
+<#@ extended name="RecordType" owner="Class" type="System.Boolean" Default="False" description="If True, the record type is generated. This feature available in C# 9.0 or higher and .NET 5 or higher." #>
+<#@ extended name="RecordType" owner="ComplexType" type="System.Boolean" Default="False" description="If True, the record type is generated. This feature available in C# 9.0 or higher and .NET 5 or higher." #>
+<#@ extended name="DirectCall" owner="Method" type="System.Boolean" default="True" category="Code Generation" description="Determines whether to generate code for calling the method directly or within LINQ." #>
+<#@ extended name="GenerateAsync" owner="Method" type="System.Boolean" default="True" category="Code Generation" description="Determines whether to generate code for asynchronous calling the method." #>
+<#@ extended name="DoNotSerialize" owner="Class" type="System.Boolean" default="False" description="If True, the class is excluded from Data Contract serialization. Default value is False." #>
+<#@ extended name="DoNotSerialize" owner="ComplexType" type="System.Boolean" default="False" description="If True, the class is excluded from Data Contract serialization. Default value is False." #>
+<#@ extended name="DoNotSerialize" owner="Property" type="System.Boolean" default="False" description="If True, the property is excluded from serialization. Default value is False." #>
+<#@ extended name="DoNotSerialize" owner="RelationProperty" type="System.Boolean" default="False" description="If True, the relation property is excluded from serialization. Default value is False." #>
+<#@ extended name="DoNotSerialize" owner="EnumType" type="System.Boolean" default="False" description="If True, the enum is excluded from Data Contract serialization. Default value is False." #>
+<#@ extended name="SerializationName" owner="Property" type="System.String" description="Custom name for serialization." #>
+<#@ extended name="SerializationName" owner="RelationProperty" type="System.String" description="Custom name for serialization." #>
+<#@ extended name="DoNotGenerateDefaultConstructor" owner="Class" type="System.Boolean" default="False" description="If it is set to True, then the default constructor will not be generated for the class." #>
+<#@ extended name="DoNotGenerateDefaultConstructor" owner="ComplexType" type="System.Boolean" default="False" description="If it is set to True, then the default constructor will not be generated for the class." #>
+<#@ extended name="DoNotGenerateDefaultConstructor" owner="ContextModel" type="System.Boolean" default="False" description="If it is set to True, then the default constructor will not be generated for the class." #>
+<#@ extended name="DoNotGenerateConstructorWithDbContextOptionsArgument" displayName="Do Not Generate Constructor With DbContextOptions Argument" owner="ContextModel" type="System.Boolean" default="False" description="If it is set to True, then the constructor with DbContextOptions argument will not be generated for the class." #>
+<#@ extended name="UseGenericDbContextOptionsConstructorArgument" displayName="Use Generic DbContextOptions Constructor Argument" owner="ContextModel" type="System.Boolean" default="True" description="If it is set to True, then the constructor with DbContextOptions<TContext> argument will not be generated for the class." #>
+<#@ extended name="DoNotGenerateOnConfiguringMethod" displayName="Do Not Generate OnConfiguring Method" owner="ContextModel" type="System.Boolean" default="False" description="If it is set to True, then the OnConfiguring method will not be generated for the class." #>
+<#@ extended name="DoNotGenerateMapping" owner="Property" type="System.Boolean" default="False" description="Determines whether to generate code for property mapping. Default value is False." #>
+<#
+  // obsolete extended options for model objects
+#>
+<#@ extended name="DoNotGenerateDataContractAttribute" displayName="[Obsolete] Do Not Generate Data Contract Attribute" owner="Class" type="System.Boolean" default="False" description="If it is set to True, then the DataContract attribute will not be generated for the entity class. The property can be used, if the Generate Data Contracts property of the template is set to True. This property is obsolete. Use 'Do Not Serialize' instead." #>
+<#@ extended name="DoNotGenerateDataMemberAttribute" displayName="[Obsolete] Do Not Generate Data Contract Attribute" owner="Property" type="System.Boolean" default="False" description="If it is set to True, then the DataMember attribute will not be generated for the class property. The property can be used, if the Generate Data Contracts property of the template is set to True. This property is obsolete. Use 'Do Not Serialize' instead." #>
+<#@ extended name="DoNotGenerateDataMemberAttribute" displayName="[Obsolete] Do Not Generate Data Contract Attribute" owner="RelationProperty" type="System.Boolean" default="False" description="If it is set to True, then the DataMember attribute will not be generated for the class property. The property can be used, if the Generate Data Contracts property of the template is set to True. This property is obsolete. Use 'Do Not Serialize' instead." #>
+<#@ extended name="DoNotGenerateDataContractAttribute" displayName="[Obsolete] Do Not Generate Data Contract Attribute" owner="EnumType" type="System.Boolean" default="False" description="If it is set to True, then the DataContract attribute will not be generated for the enum. The property can be used, if the Generate Data Contracts property of the template is set to True. This property is obsolete. Use 'Do Not Serialize' instead." #>
+<#@ extended name="DoNotGenerateDataMemberAttribute" displayName="[Obsolete] Do Not Generate Data Contract Attribute" owner="EnumTypeMember" type="System.Boolean" default="False" description="If it is set to True, then the DataMember attribute will not be generated for the enum member. The property can be used, if the Generate Data Contracts property of the template is set to True. This property is obsolete." #>
+<#
+  // Settings
+  baseFileName = model.FileName;
+  output.Extension = ".cs";
+
+  string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+
+  //------------------------------------------------------------------------------
+  // DbContext class generation
+  //------------------------------------------------------------------------------
+
+  string contextClassName = codeProvider.GetValidIdentifier(model.Name);
+  string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : defaultNamespace;
+
+  string dataContextFileName;
+  if (FilePerClass)
+    dataContextFileName = ModelNameAsFilesPrefix ? baseFileName + "." + contextClassName : contextClassName;
+  else
+    dataContextFileName = baseFileName + ".Designer";
+  ServerInfoBase serverInfo = null;
+  if (model.GetVendor() != null)
+    serverInfo = model.GetVendor().ServerInfo;
+  else
+    serverInfo = model.Settings.ModelFirstSettings.TargetServerInfo.TargetServer;
+
+  if (FilePerClass && GeneratePartialClass) {
+    output.Extension = ".cs";
+    output.PushOutputRedirection(ContextOutput, "", dataContextFileName, OverwriteMode.OverwriteIfAutoGenerated);
+    GenerateContextFileHeader(false);
+#>
+
+namespace <#= contextNamespace #>
+{
+
+    <#= codeProvider.FormatClassAccess(model.Access) #> partial class <#= contextClassName #>
+    {
+    }
+}
+<#
+    output.PopOutputRedirection();
+  }
+
+  if (FilePerClass && GeneratePartialClass)
+    output.PushOutputRedirection(ContextOutput, dataContextFileName, dataContextFileName + ".Generated");
+  else
+    output.PushOutputRedirection(ContextOutput, dataContextFileName);
+
+  GenerateContextFileHeader(true);
+  if (!FilePerClass) {
+#>
+using Microsoft.EntityFrameworkCore.Infrastructure;
+<#
+  }
+#>
+
+namespace <#= contextNamespace #>
+{
+
+<#
+      if (GenerateDummyComments) {
+#>
+    /// <summary>
+    /// There are no comments for <#= contextClassName #> class in the schema.
+    /// </summary>
+<#
+      }
+#>
+<#
+  foreach (AttributeValue attribute in model.Attributes) {
+    output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#
+  }
+  if (GenerateGeneratedCodeAttributes) {
+#>
+    [GeneratedCode("Devart Entity Developer", "")]
+<#
+  }
+
+  string contextInheritanceModifier = model.InheritanceModifier == ClassInheritanceModifier.None ? "" : " " + codeProvider.FormatClassInheritanceModifier(model.InheritanceModifier);
+
+  string contextBase = model.GetProperty("ContextBase") as string;
+  if (string.IsNullOrEmpty(contextBase))
+    contextBase = "DbContext";
+  else {
+    if (contextBase.Contains("%type name%"))
+      contextBase = contextBase.Replace("%type name%", contextClassName);      
+  }
+#>
+    <#= codeProvider.FormatClassAccess(model.Access) #><#= contextInheritanceModifier #> partial class <#= contextClassName #> : <#= contextBase #>
+    {
+
+<#
+  GenerateContextConstructors();
+  GenerateContextConfiguration();
+  GenerateContextObjectServices(contextNamespace);
+  GenerateContextMethods(contextNamespace, defaultNamespace, serverInfo);
+#>
+
+<#
+
+  if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for OnModelCreating in the schema.
+        /// </summary>
+<#
+  }
+#>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+<#
+  if (!string.IsNullOrEmpty(contextBase)) {
+#>
+            base.OnModelCreating(modelBuilder);
+
+<#
+  }
+
+  // class mapping
+  if (!SelfContainedEntityConfiguration) {
+    foreach (EntityClass cls in model.Classes) {
+#>
+            this.<#= cls.Name #>Mapping(modelBuilder);
+            this.Customize<#= cls.Name #>Mapping(modelBuilder);
+
+<#
+    }
+#>
+            RelationshipsMapping(modelBuilder);
+<#
+  }
+  else {
+    foreach (EntityClass cls in model.Classes) {
+      string fullClassName = GetCodeElementReference(cls, contextNamespace);
+#>
+            modelBuilder.ApplyConfiguration<<#= fullClassName #>>(new <#= cls.Name #>Configuration());
+<#
+      if (cls.QueryType && !string.IsNullOrEmpty(cls.RawSQLQuery)) {
+        string rootMethod = model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
+        string fromSqlMethodName = model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version2 ? "FromSql" : "FromSqlRaw";
+#>
+            modelBuilder.<#= rootMethod #><<#= fullClassName #>>().ToQuery(() => this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>.<#= fromSqlMethodName #>(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>"));
+<#
+      }
+    }
+  }
+#>
+            CustomizeMapping(ref modelBuilder);
+        }
+<#
+  // class mapping
+  if (!SelfContainedEntityConfiguration) {
+
+    foreach (EntityClass cls in model.Classes)
+      GenerateFluentClassMapping(cls, contextNamespace, serverInfo);
+#>
+
+<#
+    if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for RelationshipsMapping in the schema.
+        /// </summary>
+<#
+    }
+#>
+        private void RelationshipsMapping(ModelBuilder modelBuilder)
+        {
+<#
+
+    // generate navigation properties mapping
+    bool firstClass = true;
+    List<EntityAssociation> manyToManyAssociations = new List<EntityAssociation>();
+    foreach (EntityClass cls in model.Classes) {
+      if (cls.RelationProperties.Count > 0) {
+        bool firstProperty = true;
+        string fullClassName = GetCodeElementReference(cls, contextNamespace);
+
+        foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
+          if (relationProperty.Generate) {
+            EntityRelationProperty oppositeRelationProperty = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+            if (relationProperty.Multiplicity == Multiplicity.Many) {
+              if (oppositeRelationProperty.Multiplicity != Multiplicity.Many) { // One-To-Many or ZeroOrOne-To-Many
+                if (!firstClass && firstProperty) {
+#>
+
+<#
+                }
+                firstClass = false;
+                firstProperty = false;
+#>
+            modelBuilder.Entity<<#= fullClassName #>>().<# GenerateCollectionRelationPropertyMapping(relationProperty, serverInfo); #>;
+<#
+              }
+              else { // Many-To-Many
+                EntityAssociation association = (EntityAssociation)relationProperty.Association;
+                if (!manyToManyAssociations.Contains(association)) {
+                  manyToManyAssociations.Add(association);
+#>
+            modelBuilder.Entity<<#= fullClassName #>>().<# GenerateManyToManyRelationPropertyMapping(relationProperty, serverInfo); #>;
+<#
+                }
+              }
+            }
+            else { // One, ZeroOrOne
+              if (relationProperty.Multiplicity == Multiplicity.ZeroOrOne || // ZeroOrOne-To-One or ZeroOrOne-To-Many
+                  oppositeRelationProperty.Multiplicity == Multiplicity.One || // One-To-One
+                  oppositeRelationProperty.Multiplicity == Multiplicity.Many) { // One-To-Many
+                if (!firstClass && firstProperty) {
+#>
+
+<#
+                }
+                firstClass = false;
+                firstProperty = false;
+                string rootMethod = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
+#>
+            modelBuilder.<#= rootMethod #><<#= fullClassName #>>().<# GenerateHasOneRelationPropertyMapping(relationProperty); #>;
+<#
+              }
+            }
+          }
+        }
+      }
+    }
+#>
+        }
+<#
+  }
+#>
+
+<#
+  if (GenerateDummyComments) {
+#>
+
+        /// <summary>
+        /// There are no comments for CustomizeMapping in the schema.
+        /// </summary>
+<#
+  }
+#>
+        partial void CustomizeMapping(ref ModelBuilder modelBuilder);
+
+<#
+  if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for HasChanges property in the schema.
+        /// </summary>
+<#
+  }
+#>
+        public bool HasChanges()
+        {
+            return ChangeTracker.Entries().Any(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Added || e.State == Microsoft.EntityFrameworkCore.EntityState.Modified || e.State == Microsoft.EntityFrameworkCore.EntityState.Deleted);
+        }
+
+<#
+  if (GenerateDummyComments) {
+#>
+
+        /// <summary>
+        /// There are no comments for OnCreated method in the schema.
+        /// </summary>
+<#
+  }
+#>
+        partial void OnCreated();
+    }
+<#
+  // End of DbContext generation.
+
+
+  //------------------------------------------------------------------------------
+  // Classes for MultipleResult methods generation
+  //------------------------------------------------------------------------------
+  foreach (EntityMethod method in model.Methods.Where(m => m.MethodType == MethodType.MultipleResult)) {
+#>
+
+    <#= codeProvider.FormatMemberAccess(method.Access) #> class <#= method.Name #>MultipleResult
+    {
+
+        public <#= method.Name #>MultipleResult()
+        {
+<#
+          List<string> names = new List<string>();
+          foreach (BaseClass res in (IList)method.ReturnType) {
+            string name = codeProvider.GetPluralString(res.Name);
+            int i = 1;
+            while (names.Contains(name)) {
+              name = codeProvider.GetPluralString(res.Name) + i.ToString();
+              i++;
+            }
+            names.Add(name);
+#>
+          <#= codeProvider.GetValidIdentifier(name) #> = new List<<#= GetCodeElementReference(res, contextNamespace) #>>();
+<#
+          }
+#>
+        }
+
+<#
+          names = new List<string>();
+          foreach (BaseClass res in (IList)method.ReturnType) {
+            string name = codeProvider.GetPluralString(res.Name);
+            int i = 1;
+            while (names.Contains(name)) {
+              name = codeProvider.GetPluralString(res.Name) + i.ToString();
+              i++;
+            }
+            names.Add(name);
+#>
+        <#= codeProvider.FormatClassAccess(res.Access) #> List<<#= GetCodeElementReference(res, contextNamespace) #>> <#= codeProvider.GetValidIdentifier(name) #> { get; private set; }
+<#
+          }
+#>
+    }
+<#
+  } // End of classes for MultipleResult methods generation
+#>
+}
+<#
+
+  //------------------------------------------------------------------------------
+  // Class generation for entities
+  //------------------------------------------------------------------------------
+  var namespaces = from cls in model.Classes.Cast<EntityClass>()
+    let namespaceName = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultNamespace
+    group cls by namespaceName;
+
+  foreach (var _namespace in namespaces) {
+    if (!FilePerClass) {
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+    }
+    foreach (EntityClass cls in _namespace) {
+      bool lazy = cls.RelationProperties.OfType<EntityRelationProperty>().Any(r => r.Lazy);
+      string objectType = (bool)cls.GetProperty("RecordType") ? "record" : "class";
+      if (FilePerClass) {
+        string rootFileName = ModelNameAsFilesPrefix ? baseFileName + "." + cls.Name : cls.Name;
+        if (GeneratePartialClass) {
+          output.Extension = ".cs";
+          output.PushOutputRedirection(EntitiesOutput, "", rootFileName, OverwriteMode.OverwriteIfAutoGenerated);
+          GenerateFileHeader(false);
+#>
+
+namespace <#= _namespace.Key #>
+{
+
+    <#= codeProvider.FormatClassAccess(cls.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(cls.Name) #>
+    {
+    }
+}
+<#
+          output.PopOutputRedirection();
+        }
+
+        output.Extension = ".cs";
+        if (GeneratePartialClass)
+          output.PushOutputRedirection(EntitiesOutput, rootFileName, rootFileName + ".Generated");
+        else
+          output.PushOutputRedirection(EntitiesOutput, rootFileName);
+        GenerateFileHeader(true);
+        if (lazy) {
+#>
+using Microsoft.EntityFrameworkCore.Infrastructure;
+<#
+        }
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+      }
+
+      int propertyCounter = 0;
+      string baseList = "";
+      Inheritance baseInheritance = cls.BaseInheritance;
+
+      bool implementPropertyChanging = PropertyChangeNotifiers && baseInheritance == null;
+      if (baseInheritance != null) {
+
+        baseList = codeProvider.GetValidIdentifier(baseInheritance.BaseClass.Name);
+        string nspace = !string.IsNullOrEmpty(baseInheritance.BaseClass.Namespace) ? codeProvider.GetValidIdentifier(baseInheritance.BaseClass.Namespace) : defaultNamespace;
+        if (nspace != _namespace.Key)
+          baseList = nspace + "." + baseList;
+      }
+      else {
+        if (implementPropertyChanging)
+          baseList = "INotifyPropertyChanging, INotifyPropertyChanged";
+
+        string entityBase = cls.GetProperty("EntityBase") as string;
+        if (string.IsNullOrEmpty(entityBase))
+          entityBase = model.GetProperty("EntityBase") as string;
+        if (!string.IsNullOrEmpty(entityBase)) {
+          if (entityBase.Contains("%type name%"))
+            entityBase = entityBase.Replace("%type name%", codeProvider.GetValidIdentifier(cls.Name));
+          baseList = string.IsNullOrEmpty(baseList) ? entityBase : entityBase + ", " + baseList;
+        }
+      }
+
+      // ICloneable
+      if (ImplementCloneable && (!(bool)cls.GetProperty("DoNotImplementCloneable")))
+        baseList = string.IsNullOrEmpty(baseList) ? "ICloneable" : baseList + ", ICloneable";
+
+      // Entity class XML documentation
+      GenerateDocumentation(cls.Documentation, cls.FullName);
+
+      // Entity class attributes
+      if (GenerateGeneratedCodeAttributes) {
+#>
+    [GeneratedCode("Devart Entity Developer", "")]
+<#
+      }
+
+      GenerateSerializationAttributes(cls);
+
+      foreach (AttributeValue attribute in cls.Attributes) {
+        output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#
+      }
+
+      // Entity class code
+      string inheritanceModifier = cls.InheritanceModifier == ClassInheritanceModifier.None ? "" : " " + codeProvider.FormatClassInheritanceModifier(cls.InheritanceModifier);
+#>
+    <#= codeProvider.FormatClassAccess(cls.Access) #><#= inheritanceModifier #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(cls.Name) #><# if (!string.IsNullOrEmpty(baseList)) { #> : <#= baseList #><# } #>
+ {
+<#
+
+      // PropertyChangingEventArgs emptyChangingEventArgs
+      if (implementPropertyChanging) {
+#>
+
+        private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(System.String.Empty);
+<#
+     }
+
+      if (PropertyChangeNotifiers || PropertyChangePartialMethods) {
+        // Class fields
+        foreach (EntityProperty property in cls.Properties) {
+          if (!property.Shadow) {
+#>
+
+        private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
+<#
+          }
+        }
+      }
+
+      // Class navigation fields
+      foreach (EntityRelationProperty relationProperty in cls.RelationProperties.OfType<EntityRelationProperty>().Where(r => PropertyChangeNotifiers || PropertyChangePartialMethods || r.Lazy)) {
+        if (relationProperty.Generate) {
+#>
+
+        private <#= GetRelationPropertyTypeName(relationProperty, _namespace.Key, defaultNamespace) #> _<#= relationProperty.Name #>;
+<#
+        }
+      }
+
+      // default constructor
+      bool doNotGenerateDefaultConstructor = (bool)cls.GetProperty("DoNotGenerateDefaultConstructor");
+      if (!doNotGenerateDefaultConstructor) {
+#>
+
+<#
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+        /// </summary>
+<#
+        }
+#>
+        <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>()
+        {
+<#
+        foreach (EntityProperty property in cls.Properties) {
+          if (!property.Shadow) {
+            string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods) ? codeProvider.GetValidIdentifier(property.Name) : "_" + property.Name;
+            if (property.IsComplexType) {
+              string nspace = !string.IsNullOrEmpty(((EntityComplexType)property.Type).Namespace) ? codeProvider.GetValidIdentifier(((EntityComplexType)property.Type).Namespace) : defaultNamespace;
+              string propertyDataType = codeProvider.GetValidIdentifier(property.Type.ToString());
+              if (nspace != _namespace.Key)
+                propertyDataType = nspace + "." + propertyDataType;
+#>
+            this.<#= propertyName #> = new <#= propertyDataType #>();
+<#
+            }
+            else {
+              if (property.ValueGenerated == EntityValueGenerated.Never) {
+                string formatedDefaultValue = model.GetModelDescriptor().CanFormatDefaultValue(property.Type, property.Column.Default) ? codeProvider.FormatPropertyValue(property.Type, property.Column.Default, PrimitiveDefaultValueGeneration) : null;
+                if (!string.IsNullOrEmpty(formatedDefaultValue)) {
+#>
+            this.<#= propertyName #> = <#= formatedDefaultValue #>;
+<#
+                }
+              }
+            }
+          }
+        }
+
+        foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
+          if (relationProperty.Generate) {
+            if (relationProperty.Multiplicity == Multiplicity.Many && CollectionInitializationType != EFCoreCollectionInitializationType.None) {
+             string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods && !relationProperty.Lazy) ? codeProvider.GetValidIdentifier(relationProperty.Name) : "_" + relationProperty.Name;
+#>
+            this.<#= propertyName #> = new <#= GetRelationPropertyCollectionInitialization(relationProperty, _namespace.Key, defaultNamespace) #>;
+<#
+            }
+          }
+        }
+#>
+            OnCreated();
+        }
+<#
+      }
+
+      // constructor with parameters
+      if (cls.Properties.Any(p => ((EntityProperty)p).ConstructorParameter)) {
+#>
+
+<#
+        Dictionary<string, EntityProperty> parameters = new Dictionary<string, EntityProperty>();
+        foreach (EntityProperty prop in cls.Properties.Where(p => ((EntityProperty)p).ConstructorParameter)) {
+          string paramName = codeProvider.GetValidIdentifier(Char.ToLower(prop.Name[0]) + prop.Name.Substring(1));
+          parameters.Add(paramName, prop);
+        }
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+        /// </summary>
+<#
+        }
+#>
+        <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>(<#= string.Join(", ", parameters.Select(p => GetPropertyTypeName(p.Value, _namespace.Key, defaultNamespace) + " " + p.Key)) #>)<#
+        if (!doNotGenerateDefaultConstructor) {
+          #> : this()<#
+        }
+        #>
+        {
+<#
+        foreach (var param in parameters) {
+#>
+            this.<#= codeProvider.GetValidIdentifier(param.Value.Name) #> = <#= codeProvider.GetValidIdentifier(param.Key) #>;
+<#
+        }
+#>
+        }
+<#
+      }
+
+      // constructor for lazy loading
+      if (lazy) {
+#>
+
+<#
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+        /// </summary>
+<#
+        }
+#>
+        private <#= codeProvider.GetValidIdentifier(cls.Name) #>(ILazyLoader lazyLoader) : this()
+        {
+            LazyLoader = lazyLoader;
+        }
+
+        private ILazyLoader LazyLoader { get; set; }
+<#
+      }
+
+      // Class properties
+      foreach (EntityProperty property in cls.Properties) {
+        if (!property.Shadow) {
+          if (!(bool)property.GetProperty("DoNotGenerateDataMemberAttribute"))
+            propertyCounter++;
+          GenerateProperty(property, propertyCounter, PropertyChangeNotifiers, _namespace.Key, serverInfo, cls.InheritanceModifier == ClassInheritanceModifier.Sealed);
+        }
+      }
+
+      // Class navigation properties
+      foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
+        if (relationProperty.Generate) {
+          if (!((bool)relationProperty.GetProperty("DoNotGenerateDataMemberAttribute"))) 
+            propertyCounter ++;
+          GenerateRelationProperty(relationProperty, propertyCounter, PropertyChangeNotifiers, _namespace.Key);
+        }
+      }
+
+      // extensibility method definitions
+      bool implementEquals = !(bool)cls.GetProperty("RecordType") && (ImplementEquals || (cls.Properties.Count(p => p.PrimaryKey) > 1 || cls.Properties.Any(p => p.PrimaryKey && p.IsComplexType)));
+      GenerateClassExtensibilityMethodDefinitions(cls, _namespace.Key, implementEquals);
+
+      // Well-known identifiers
+      GenerateWellknowIdentifiers(cls, _namespace.Key);
+
+      // ICloneable
+      if (ImplementCloneable && (!(bool)cls.GetProperty("DoNotImplementCloneable")) && !(cls.InheritanceModifier == ClassInheritanceModifier.Abstract && baseInheritance != null))
+        GenerateICloneable(cls, _namespace.Key, defaultNamespace);
+
+      if (implementPropertyChanging) {
+
+        var overrideModifier = cls.InheritanceModifier == ClassInheritanceModifier.Sealed ? string.Empty : codeProvider.FormatMemberInheritanceModifier(MemberInheritanceModifier.Virtual) + ' ';
+#>
+
+        public <#= overrideModifier #>event PropertyChangingEventHandler PropertyChanging;
+
+        public <#= overrideModifier #>event PropertyChangedEventHandler PropertyChanged;
+
+        protected <#= overrideModifier #>void SendPropertyChanging()
+        {
+            var handler = this.PropertyChanging;
+            if (handler != null)
+                handler(this, emptyChangingEventArgs);
+        }
+
+        protected <#= overrideModifier #>void SendPropertyChanging(System.String propertyName) 
+        {
+            var handler = this.PropertyChanging;
+            if (handler != null)
+                handler(this, new PropertyChangingEventArgs(propertyName));
+        }
+
+        protected <#= overrideModifier #>void SendPropertyChanged(System.String propertyName)
+        {
+            var handler = this.PropertyChanged;
+            if (handler != null)
+                handler(this, new PropertyChangedEventArgs(propertyName));
+        }
+<#
+      }
+#>
+    }
+<#
+      if (FilePerClass) {
+#>
+
+}
+<#
+        output.PopOutputRedirection();
+      }
+    
+    } // End of class generation
+
+    if (!FilePerClass) {
+#>
+
+}
+<#
+    }
+  } // End of namespace generation
+
+
+  //------------------------------------------------------------------------------
+  // Complex Type class generation
+  //------------------------------------------------------------------------------
+  var typeNamespaces = from type in model.ComplexTypes.Cast<EntityComplexType>().Where(t => !t.IsExternal)
+    let namespaceName = !String.IsNullOrEmpty(type.Namespace) ? codeProvider.GetValidIdentifier(type.Namespace) : defaultNamespace
+    group type by namespaceName;
+
+  foreach (var _namespace in typeNamespaces) {
+    if (!FilePerClass) {
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+    }
+    foreach (EntityComplexType type in _namespace) {
+      string objectType = (bool)type.GetProperty("RecordType") ? "record" : "class";
+      if (FilePerClass) {
+        string rootFileName = ModelNameAsFilesPrefix ? baseFileName + "." + type.Name : type.Name;
+        if (GeneratePartialClass) {
+          output.Extension = ".cs";
+          output.PushOutputRedirection(EntitiesOutput, "", rootFileName, OverwriteMode.OverwriteIfAutoGenerated);
+          GenerateFileHeader(false);
+#>
+
+namespace <#= _namespace.Key #>
+{
+
+    <#= codeProvider.FormatClassAccess(type.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(type.Name) #>
+    {
+    }
+}
+<#
+          output.PopOutputRedirection();
+        }
+
+        output.Extension = ".cs";
+        if (GeneratePartialClass)
+          output.PushOutputRedirection(EntitiesOutput, rootFileName, rootFileName + ".Generated");
+        else
+          output.PushOutputRedirection(EntitiesOutput, rootFileName);
+        GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+      }
+
+      // Complex Type class documentation generation
+      int propertyCounter = 0;
+      GenerateDocumentation(type.Documentation, type.FullName);
+
+      // Complex Type class attributes generation
+      foreach (AttributeValue attribute in type.Attributes) {
+        output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#
+      }
+
+      if (GenerateGeneratedCodeAttributes) {
+#>
+    [GeneratedCode("Devart Entity Developer", "")]
+<#
+      }
+
+      GenerateSerializationAttributes(type);
+
+      // Complex Type class generation
+      string baseList = "";
+      // (PropertyChangeNotifiers
+      if (PropertyChangeNotifiers)
+        baseList = "INotifyPropertyChanging, INotifyPropertyChanged";
+      // ICloneable
+      //if (ImplementCloneable && (!(bool)type.GetProperty("DoNotImplementCloneable")))
+        //baseList = string.IsNullOrEmpty(baseList) ? "ICloneable" : baseList + ", ICloneable";
+
+      string complexTypeBase = type.GetProperty("ComplexTypeBase") as string;
+      if (string.IsNullOrEmpty(complexTypeBase))
+        complexTypeBase = model.GetProperty("ComplexTypeBase") as string;
+      if (!string.IsNullOrEmpty(complexTypeBase)) {
+        if (complexTypeBase.Contains("%type name%"))
+          complexTypeBase = complexTypeBase.Replace("%type name%", codeProvider.GetValidIdentifier(type.Name));
+        baseList = string.IsNullOrEmpty(baseList) ? complexTypeBase : complexTypeBase + ", " + baseList;
+      }
+#>
+    <#= codeProvider.FormatClassAccess(type.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(type.Name) #><# if (!string.IsNullOrEmpty(baseList)) { #> : <#= baseList #><# } #>
+ {
+<#
+      if (PropertyChangeNotifiers) {
+#>
+
+        private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(System.String.Empty);
+<#
+      }
+#>
+<#
+      if (PropertyChangeNotifiers || PropertyChangePartialMethods) {
+        // type fields
+        foreach (EntityProperty property in type.Properties) {
+          if (!property.Shadow) {
+#>
+
+        private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
+<#
+          }
+        }
+      }
+
+      // default constructor of Complex Type
+      bool doNotGenerateDefaultConstructor = (bool)type.GetProperty("DoNotGenerateDefaultConstructor");
+      if (!doNotGenerateDefaultConstructor) {
+#>
+
+<#
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(type.Name) #> constructor in the schema.
+        /// </summary>
+<#
+        }
+#>
+        <#= codeProvider.FormatMemberAccess((MemberAccess)type.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(type.Name) #>()
+        {
+<#
+        // Type component fields initialization
+        foreach (EntityProperty property in type.Properties) {
+          if (property.IsComplexType && !property.Shadow) {
+            string nspace = !string.IsNullOrEmpty(((EntityComplexType)property.Type).Namespace) ? codeProvider.GetValidIdentifier(((EntityComplexType)property.Type).Namespace) : defaultNamespace;
+            string propertyDataType = codeProvider.GetValidIdentifier(property.Type.ToString());
+            if (nspace != _namespace.Key)
+              propertyDataType = nspace + "." + propertyDataType;
+            string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods) ? codeProvider.GetValidIdentifier(property.Name) : "_" + property.Name;
+#>
+            this.<#= propertyName #> = new <#= propertyDataType #>();
+<#
+          }
+        }
+#>
+            OnCreated();
+        }
+<#
+      }
+
+      // constructor with parameters
+      if (type.Properties.Any(p => ((EntityProperty)p).ConstructorParameter)) {
+#>
+
+<#
+        Dictionary<string, EntityProperty> parameters = new Dictionary<string, EntityProperty>();
+        foreach (EntityProperty prop in type.Properties.Where(p => ((EntityProperty)p).ConstructorParameter)) {
+          string paramName = codeProvider.GetValidIdentifier(Char.ToLower(prop.Name[0]) + prop.Name.Substring(1));
+          parameters.Add(paramName, prop);
+        }
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(type.Name) #> constructor in the schema.
+        /// </summary>
+<#
+        }
+#>
+        <#= codeProvider.FormatMemberAccess((MemberAccess)type.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(type.Name) #>(<#= string.Join(", ", parameters.Select(p => GetPropertyTypeName(p.Value, _namespace.Key, defaultNamespace) + " " + p.Key)) #>)<#
+        if (!doNotGenerateDefaultConstructor) {
+          #> : this()<#
+        }
+        #>
+        {
+<#
+        foreach (var param in parameters) {
+#>
+            this.<#= codeProvider.GetValidIdentifier(param.Value.Name) #> = <#= codeProvider.GetValidIdentifier(param.Key) #>;
+<#
+        }
+#>
+        }
+<#
+      }
+
+      // properties
+      foreach (EntityProperty property in type.Properties) {
+        if (!property.Shadow) {
+            if (!(bool)property.GetProperty("DoNotGenerateDataMemberAttribute"))
+              propertyCounter++;
+            GenerateProperty(property, propertyCounter, PropertyChangeNotifiers, _namespace.Key, serverInfo, false);
+        }
+      }
+
+      // extensibility method definitions
+      bool implementEquals = !(bool)type.GetProperty("RecordType") && ImplementEquals;
+      GenerateClassExtensibilityMethodDefinitions(type, _namespace.Key, implementEquals);
+
+      // Well-known identifiers
+      GenerateWellknowIdentifiers(type, _namespace.Key);
+
+      // ICloneable
+      //if (ImplementCloneable && (!(bool)type.GetProperty("DoNotImplementCloneable")))
+        //GenerateICloneable(type, _namespace.Key, defaultNamespace);
+
+      if (PropertyChangeNotifiers) {
+#>
+
+        public virtual event PropertyChangingEventHandler PropertyChanging;
+
+        public virtual event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void SendPropertyChanging()
+        {
+            var handler = this.PropertyChanging;
+            if (handler != null)
+                handler(this, emptyChangingEventArgs);
+        }
+
+        protected virtual void SendPropertyChanging(System.String propertyName) 
+        {
+            var handler = this.PropertyChanging;
+            if (handler != null)
+                handler(this, new PropertyChangingEventArgs(propertyName));
+        }
+
+        protected virtual void SendPropertyChanged(System.String propertyName)
+        {
+            var handler = this.PropertyChanged;
+            if (handler != null)
+                handler(this, new PropertyChangedEventArgs(propertyName));
+        }
+<#
+      }
+#>
+    }
+<#
+      if (FilePerClass) {
+#>
+
+}
+<#
+        output.PopOutputRedirection();
+      }
+
+    } // End of complex type generation
+
+    if (!FilePerClass) {
+#>
+
+}
+<#
+    }
+  } // End of namespace generation
+
+
+  //------------------------------------------------------------------------------
+  // Enum types generation
+  //------------------------------------------------------------------------------
+  var enumTypeNamespaces = from type in model.EnumTypes.Where(e => !e.IsExternal).Cast<EntityEnumType>()
+    let namespaceName = !String.IsNullOrEmpty(type.Namespace) ? codeProvider.GetValidIdentifier(type.Namespace) : defaultNamespace
+    group type by namespaceName;
+
+  foreach (var _namespace in enumTypeNamespaces) {
+    if (!FilePerClass) {
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+    }
+    foreach (EntityEnumType enumType in _namespace) {
+      if (FilePerClass) {
+        output.Extension = ".cs";
+        if (EnumOutput != null && !EnumOutput.IsEmpty)
+          output.PushOutputRedirection(EnumOutput, ModelNameAsFilesPrefix ? baseFileName + "." + enumType.Name : enumType.Name);
+        else
+          output.PushOutputRedirection(EntitiesOutput, ModelNameAsFilesPrefix ? baseFileName + "." + enumType.Name : enumType.Name);
+        GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+      }
+
+      // Enum documentation generation
+      GenerateDocumentation(enumType.Documentation, enumType.FullName);
+
+      // Enum attributes generation
+      GenerateSerializationAttributes(enumType);
+
+      foreach (AttributeValue attribute in enumType.Attributes) {
+        output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#
+      }
+
+      if (GenerateGeneratedCodeAttributes) {
+#>
+    [GeneratedCode("Devart Entity Developer", "")]
+<#
+      }
+
+      if (enumType.IsFlag) {
+#>
+    [Flags]
+<#
+      }
+
+      // Enum code generation
+#>
+    <#= codeProvider.FormatClassAccess(enumType.Access) #> enum <#= codeProvider.GetValidIdentifier(enumType.Name) #> : <#= codeProvider.GetNullableType(false, enumType.EntityUnderlyingDataType) #>
+    {<#
+      // enum type members
+      if (enumType.Members.Count > 0) {
+        foreach (EnumTypeMember member in enumType.Members) {
+#>
+
+<#
+          output.Indent++;
+          GenerateDocumentation(member.Documentation, member.ParentEnum.Name + "." + member.Name);
+          output.Indent--;
+
+          foreach (AttributeValue attribute in member.Attributes) {
+            output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+        <#= codeProvider.FormatAttributeValue(attribute) #>
+<#
+          }
+
+          if (GenerateDataContracts && (bool)member.GetProperty("GenerateEnumMemberAttribute")) {
+#>
+        [EnumMember]
+<#
+          }
+#>
+        <#= codeProvider.GetValidIdentifier(member.Name) #><# if (member.Value != null) { #> = <#= member.Value.ToString() #><# } #><# if (member != enumType.Members.Last()) { #>,<# } #>
+<#
+        }
+      } // End of enum type members generation 
+#>
+
+    }
+<#
+      if (FilePerClass) {
+#>
+}
+<#
+        output.PopOutputRedirection();
+      }
+
+    } // End of enum type generation
+
+    if (!FilePerClass) {
+#>
+
+}
+<#
+    }
+  } // End of namespace generation
+  output.PopOutputRedirection();
+
+  //------------------------------------------------------------------------------
+  // Entity configuration class generation
+  //------------------------------------------------------------------------------
+  if (SelfContainedEntityConfiguration) {
+
+    // Settings
+    baseFileName = model.FileName + ".Configuration";
+
+    // Begin generation
+    if (!FilePerClass) {
+      output.PushOutputRedirection(EntitiesConfigurationOutput, baseFileName + ".Designer");
+      GenerateConfigurationFileHeader(false);
+    }
+
+    namespaces = from cls in model.Classes.Cast<EntityClass>()
+      let namespaceName = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultNamespace
+      group cls by namespaceName;
+
+    foreach (var _namespace in namespaces) {
+      if (!FilePerClass) {
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+      }
+      foreach (EntityClass cls in _namespace) {
+        string classType = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
+        if (FilePerClass) {
+          string rootFileName = ModelNameAsFilesPrefix ? model.FileName + "." + cls.Name + ".Configuration" : cls.Name + ".Configuration";
+          if (GeneratePartialClass) {
+            output.PushOutputRedirection(EntitiesConfigurationOutput, "", rootFileName, OverwriteMode.OverwriteIfAutoGenerated);
+            GenerateConfigurationFileHeader(false);
+#>
+
+namespace <#= _namespace.Key #>
+{
+
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration in the schema.
+    /// </summary>
+    <#= codeProvider.FormatClassAccess(cls.Access) #> partial class <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration
+    {
+        partial void CustomizeConfiguration(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder)
+        {
+        }
+    }
+}
+<#
+            output.PopOutputRedirection();
+          }
+          if (GeneratePartialClass)
+            output.PushOutputRedirection(EntitiesConfigurationOutput, rootFileName, rootFileName + ".Generated");
+          else
+            output.PushOutputRedirection(EntitiesConfigurationOutput, rootFileName);
+          GenerateConfigurationFileHeader(true);
+#>
+
+namespace <#= _namespace.Key #>
+{
+<#
+        }
+#>
+    /// <summary>
+    /// There are no comments for <#= cls.Name #>Configuration in the schema.
+    /// </summary>
+<#
+        if (GenerateGeneratedCodeAttributes) {
+#>
+    [GeneratedCode("Devart Entity Developer", "")]
+<#
+        }
+#>
+    <#= codeProvider.FormatClassAccess(cls.Access) #> partial class <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration : I<#= classType #>TypeConfiguration<<#= codeProvider.GetValidIdentifier(cls.Name) #>>
+    {
+<#
+
+#>
+        /// <summary>
+        /// There are no comments for Configure(EntityTypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder) method in the schema.
+        /// </summary>
+        public void Configure(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder)
+        {
+<#
+        GenerateConfigurationClassMapping(cls, contextNamespace, serverInfo);
+#>
+
+            CustomizeConfiguration(builder);
+        }
+
+        #region Partial Methods
+
+        partial void CustomizeConfiguration(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder);
+
+        #endregion
+    }
+
+<#
+        if (FilePerClass) {
+#>
+}
+<#
+          output.PopOutputRedirection();
+        }
+
+      } // End of configuration class generation
+
+      if (!FilePerClass) {
+#>
+}
+<#
+      }
+    } // End of namespace generation
+
+  } // if SelfContainedEntityConfiguration
+
+  // End of generation
+#>
+<#+
+  private string baseFileName = string.Empty;
+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateFileHeader()
+  // Comments and namespaces for each generated file.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateFileHeader(bool generateWarning) {
+
+    if (generateWarning) {
+#>
+//------------------------------------------------------------------------------
+// This is auto-generated code.
+//------------------------------------------------------------------------------
+// This code was generated by Entity Developer tool using EF Core template.
+// <#= String.IsNullOrEmpty(HeaderTimestampVersionControlTag) ? "Code is generated on: " + DateTime.Now : HeaderTimestampVersionControlTag #>
+//
+// Changes to this file may cause incorrect behavior and will be lost if
+// the code is regenerated.
+//------------------------------------------------------------------------------
+
+<#+
+      if (NullableReferenceTypes == ReferenceTypeNullability.Enable) {
+#>
+#nullable enable annotations
+#nullable disable warnings
+
+<#+
+      }
+      else if (NullableReferenceTypes == ReferenceTypeNullability.Disable) {
+#>
+#nullable disable
+
+<#+
+      }
+    }
+#>
+using System;
+<#+
+    if (GenerateGeneratedCodeAttributes) {
+#>
+using System.CodeDom.Compiler;
+<#+
+    }
+#>
+using System.Collections.Generic;
+using System.ComponentModel;
+<#+
+    GenerateDataAnnotationsValidationNamespace();
+#>
+using System.Data;
+using System.Data.Common;
+using System.Linq;
+using System.Linq.Expressions;
+<#+
+    if (SerializationLibrary == SerializationLibrary.DataContract || GenerateDataContracts) {
+#>
+using System.Runtime.Serialization;
+<#+
+    }
+    if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
+#>
+using Newtonsoft.Json;
+<#+
+    }
+    else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+using System.Text.Json.Serialization;
+<#+
+    }
+
+    GenerateOtherValidationNamespaces();
+
+    if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
+#>
+using YamlDotNet.Serialization;
+<#+
+    }
+#>
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextFileHeader()
+  // Comments and namespaces for context generated file.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextFileHeader(bool generateWarning) {
+
+    if (generateWarning) {
+#>
+//------------------------------------------------------------------------------
+// This is auto-generated code.
+//------------------------------------------------------------------------------
+// This code was generated by Entity Developer tool using EF Core template.
+// <#= String.IsNullOrEmpty(HeaderTimestampVersionControlTag) ? "Code is generated on: " + DateTime.Now : HeaderTimestampVersionControlTag #>
+//
+// Changes to this file may cause incorrect behavior and will be lost if
+// the code is regenerated.
+//------------------------------------------------------------------------------
+
+<#+
+      if (FilePerClass && NullableReferenceTypes != ReferenceTypeNullability.Default || NullableReferenceTypes == ReferenceTypeNullability.Disable) {
+#>
+#nullable disable
+
+<#+
+      }
+      else if (!FilePerClass && NullableReferenceTypes == ReferenceTypeNullability.Enable) {
+#>
+#nullable enable annotations
+#nullable disable warnings
+
+<#+
+      }
+    }
+#>
+using System;
+<#+
+    if (GenerateGeneratedCodeAttributes) {
+#>
+using System.CodeDom.Compiler;
+<#+
+    }
+#>
+using System.Collections.Generic;
+using System.ComponentModel;
+<#+
+    if (!FilePerClass)
+      GenerateDataAnnotationsValidationNamespace();
+#>
+using System.Data;
+using System.Data.Common;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+<#+
+    if (!FilePerClass && SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+using System.Text.Json.Serialization;
+<#+
+    }
+#>
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.EntityFrameworkCore.Metadata;
+<#+
+    if (model.Settings.TargetFramework.IsNetCore() && model.Settings.ConnectionStringInAppConfig && !String.IsNullOrEmpty(model.Settings.AppConnectionStringName)) {
+#>
+using Microsoft.Extensions.Configuration;
+<#+
+    }
+
+    string providerInvariantName = model.GetProviderName();
+    if (providerInvariantName == ProvidersManager.MySQLConnectorNETInvariantName) {
+      if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
+#>
+using MySql.EntityFrameworkCore.Extensions;
+<#+
+      }
+      else {
+#>
+using MySql.Data.EntityFrameworkCore.Extensions;
+<#+
+      }
+    }
+
+    if (!FilePerClass && SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
+#>
+using Newtonsoft.Json;
+<#+
+    }
+
+    if (!FilePerClass)
+      GenerateOtherValidationNamespaces();
+
+    if (!FilePerClass && SerializationLibrary == SerializationLibrary.YamlDotNet) {
+#>
+using YamlDotNet.Serialization;
+<#+
+    }
+
+    if (!string.IsNullOrEmpty(model.ContextNamespace) && model.ContextNamespace != model.GetDefaultNamespace() &&
+       (model.Classes.Any(c => string.IsNullOrEmpty(c.Namespace)) || model.ComplexTypes.Any(c => string.IsNullOrEmpty(c.Namespace)) || model.EnumTypes.Any(c => !c.IsExternal && string.IsNullOrEmpty(c.Namespace)))) {
+#>
+using <#= codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) #>;
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateConfigurationFileHeader()
+  // Comments and namespaces for each generated configuration file.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateConfigurationFileHeader(bool generateWarning) {
+
+    if (generateWarning) {
+#>
+//------------------------------------------------------------------------------
+// This is auto-generated code.
+//------------------------------------------------------------------------------
+// This code was generated by Entity Developer tool using EF Core template.
+// <#= String.IsNullOrEmpty(HeaderTimestampVersionControlTag) ? "Code is generated on: " + DateTime.Now : HeaderTimestampVersionControlTag #>
+//
+// Changes to this file may cause incorrect behavior and will be lost if
+// the code is regenerated.
+//------------------------------------------------------------------------------
+
+<#+
+      if (NullableReferenceTypes != ReferenceTypeNullability.Default) {
+#>
+#nullable disable
+
+<#+
+      }
+    }
+#>
+using System;
+<#+
+    if (GenerateGeneratedCodeAttributes) {
+#>
+using System.CodeDom.Compiler;
+<#+
+    }
+#>
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.Common;
+using System.Linq;
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextConstructors()
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextConstructors() {
+
+    if (!(bool)model.GetProperty("DoNotGenerateDefaultConstructor")) {
+      if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= model.Name #> constructor in the schema.
+        /// </summary>
+<#+
+      }
+#>
+        public <#= model.Name #>() :
+            base()
+        {
+            OnCreated();
+        }
+
+<#+
+    }
+
+    if (!(bool)model.GetProperty("DoNotGenerateConstructorWithDbContextOptionsArgument")) {
+      if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= model.Name #> constructor in the schema.
+        /// </summary>
+<#+
+      }
+#>
+        public <#= model.Name #>(<#+
+      if ((bool)model.GetProperty("UseGenericDbContextOptionsConstructorArgument")) {
+        #>DbContextOptions<<#= model.Name #>><#+
+      }
+      else {
+        #>DbContextOptions<#+
+      }
+      #> options) :
+            base(options)
+        {
+            OnCreated();
+        }
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextConfiguration()
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextConfiguration() {
+
+    bool doNotGenerateOnConfiguringMethod = (bool)model.GetProperty("DoNotGenerateOnConfiguringMethod");
+    if (doNotGenerateOnConfiguringMethod)
+      return;
+#>
+
+<#+
+    if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for OnConfiguring(DbContextOptionsBuilder optionsBuilder) method in the schema.
+        /// </summary>
+<#+
+    }
+#>
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured ||
+                (!optionsBuilder.Options.Extensions.OfType<RelationalOptionsExtension>().Any(ext => !string.IsNullOrEmpty(ext.ConnectionString) || ext.Connection != null) &&
+                 !optionsBuilder.Options.Extensions.Any(ext => !(ext is RelationalOptionsExtension) && !(ext is CoreOptionsExtension))))
+            {
+<#+
+    bool appConfig = model.Settings.ConnectionStringInAppConfig && !String.IsNullOrEmpty(model.Settings.AppConnectionStringName);
+    string providerInvariantName = model.GetProviderName();
+
+    string methodName = null;
+    bool useNetTopologySuite = false;
+    bool useHierarchyId = false;
+    switch (providerInvariantName) {
+      case ProvidersManager.SqlClientInvariantName:
+        methodName = "UseSqlServer";
+        useNetTopologySuite = true;
+        useHierarchyId = model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version3 && model.HasHierarchyId;
+        break;
+      case ProvidersManager.SqlClientCe35InvariantName:
+      case ProvidersManager.SqlClientCe40InvariantName:
+        methodName = "UseSqlCe";
+        break;
+      case ProvidersManager.SQLiteDPInvariantName:
+      case ProvidersManager.MicrosoftSQLiteInvariantName:
+        methodName = "UseSqlite";
+        break;
+      case ProvidersManager.NPgSQLInvariantName:
+        methodName = "UseNpgsql";
+        useNetTopologySuite = true;
+        break;
+      case ProvidersManager.DB2InvariantName:
+        methodName = "UseDb2";
+        break;
+      case ProvidersManager.MySQLConnectorNETInvariantName:
+        methodName = "UseMySQL";
+        break;
+      case ProvidersManager.MySqlConnectorInvariantName:
+        methodName = "UseMySql";
+        useNetTopologySuite = true;
+        break;
+      case ProvidersManager.OracleDPInvariantName:
+      case ProvidersManager.OracleDPManagedInvariantName:
+        methodName = "UseOracle";
+        break;
+      case ProvidersManager.FirebirdInvariantName:
+        methodName = "UseFirebird";
+        break;
+      case ProvidersManager.dcOracleInvariantName:
+        methodName = "UseOracle";
+        useNetTopologySuite = true;
+        break;
+      case ProvidersManager.dcMySQLInvariantName:
+        methodName = "UseMySql";
+        useNetTopologySuite = true;
+        break;
+      case ProvidersManager.dcPostgreSQLInvariantName:
+        methodName = "UsePostgreSql";
+        useNetTopologySuite = true;
+        break;
+      case ProvidersManager.dcSQLiteInvariantName:
+        methodName = "UseSQLite";
+        useNetTopologySuite = true;
+        break;
+      default:
+        if (ProvidersManager.IsDevartProvider(providerInvariantName))
+          methodName = "Use" + providerInvariantName.Substring(providerInvariantName.LastIndexOf(".") + 1);
+        break;
+    }
+
+    if (useNetTopologySuite) {
+      if (model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version1 ||
+          model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 && ProvidersManager.IsDevartProvider(providerInvariantName) ||
+          !model.HasSpatials)
+        useNetTopologySuite = false;
+    }
+
+    if (!string.IsNullOrEmpty(methodName) && (appConfig || model.Settings.SaveConnection)) {
+      if (appConfig) {
+#>
+                optionsBuilder.<#= methodName #>(GetConnectionString("<#= model.Settings.AppConnectionStringName #>")<#+
+      }
+      else {
+#>
+                optionsBuilder.<#= methodName #>(@"<#= ModelUtils.GetQuotedString(model.Connection.GetSavedUsersConnectionString()) #>"<#+
+      }
+
+      bool useMicrosoftJson = false;
+      bool useNewtonsoftJson = false;
+      if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version3 && providerInvariantName == ProvidersManager.MySqlConnectorInvariantName) {
+        useMicrosoftJson = model.HasMicrosoftJson;
+        useNewtonsoftJson = model.HasNewtonsoftJson;
+      }
+
+      bool isMultiline = useNetTopologySuite && useHierarchyId || // Microsoft SQL Server (Microsoft.Data.SqlClient)
+                         useNetTopologySuite && (useMicrosoftJson || useNewtonsoftJson) || useMicrosoftJson && useNewtonsoftJson; // MySQL (Pomelo)
+
+      if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5 && providerInvariantName == ProvidersManager.MySqlConnectorInvariantName) {
+        #>,<#+
+        if (isMultiline) {
+#>
+
+                   <#+
+        }
+        #> MySqlServerVersion.LatestSupportedServerVersion<#+
+      }
+
+      if (useNetTopologySuite || useHierarchyId || useMicrosoftJson || useNewtonsoftJson) {
+        #>,<#+
+        if (isMultiline) {
+#>
+
+                   <#+
+        }
+        #> options => {<#+
+        if (useNetTopologySuite) {
+          if (isMultiline) {
+#>
+
+                       <#+
+          }
+          #> options.UseNetTopologySuite();<#+
+        }
+        if (useHierarchyId) {
+          if (isMultiline) {
+#>
+
+                       <#+
+          }
+          #> options.UseHierarchyId();<#+
+        }
+        if (useMicrosoftJson) {
+          if (isMultiline) {
+#>
+
+                       <#+
+          }
+          #> options.UseMicrosoftJson();<#+
+        }
+        if (useNewtonsoftJson) {
+          if (isMultiline) {
+#>
+
+                       <#+
+          }
+          #> options.UseNewtonsoftJson();<#+
+        }
+        if (isMultiline) {
+#>
+
+                   <#+
+        }
+        #> }<#+
+      }
+#>);
+<#+
+    }
+    if (model.UseLazyLoadingProxies) {
+#>
+                optionsBuilder.UseLazyLoadingProxies();
+<#+
+    }
+#>
+            }
+            CustomizeConfiguration(ref optionsBuilder);
+            base.OnConfiguring(optionsBuilder);
+        }
+
+<#+
+      if (appConfig) {
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for GetConnectionString method in the schema.
+        /// </summary>
+<#+
+        }
+#>
+        private static string GetConnectionString(string connectionStringName)
+        {
+<#+
+      if (model.Settings.TargetFramework.IsNetCore()) {
+#>
+            var configurationBuilder = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+<#+
+      if (!string.IsNullOrEmpty(JsonFileBasePath)) {
+        if (JsonFileBasePath == "%CurrentDirectory%") {
+#>
+            configurationBuilder.SetBasePath(System.IO.Directory.GetCurrentDirectory());
+<#+
+        } else {
+#>
+            configurationBuilder.SetBasePath(@"<#= ModelUtils.GetQuotedString(JsonFileBasePath) #>");
+<#+
+        }
+      }
+#>
+<#+
+      if (IncludeEnvironmentVariables) {
+#>
+            configurationBuilder.AddEnvironmentVariables();
+<#+
+      }
+#>
+            var configuration = configurationBuilder.Build();
+            return configuration.GetConnectionString(connectionStringName);
+<#+
+      }
+      else {
+#>
+            System.Configuration.ConnectionStringSettings connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[connectionStringName];
+            if (connectionStringSettings == null)
+                throw new InvalidOperationException("Connection string \"" + connectionStringName +"\" could not be found in the configuration file.");
+            return connectionStringSettings.ConnectionString;
+<#+
+      }
+#>
+        }
+
+<#+
+      }
+
+      if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// Allows you to customize the configuration of model.
+        /// </summary>
+<#+
+      }
+#>
+        partial void CustomizeConfiguration(ref DbContextOptionsBuilder optionsBuilder);
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextObjectServices(string contextNamespace)
+  // Class properties of OpenAccessContext generation.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextObjectServices(string contextNamespace) {
+
+    // class properties of context
+    foreach (EntityClass cls in model.Classes) {
+      string className = GetCodeElementReference(cls, contextNamespace);
+#>
+
+<#+
+      var overrideModifier = cls.InheritanceModifier == ClassInheritanceModifier.Sealed ? string.Empty : codeProvider.FormatMemberInheritanceModifier(MemberInheritanceModifier.Virtual) + ' ';
+
+      if (!string.IsNullOrEmpty(cls.RawSQLQuery) && !cls.QueryType && model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version3) {
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #> property in the schema.
+        /// </summary>
+<#+
+        }
+#>
+
+        <#= codeProvider.FormatClassAccess(cls.Access) #> <#= overrideModifier #>IQueryable<<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>
+        {
+            get
+            {
+                return this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal.FromSql(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>");
+            }
+        }
+
+<#+
+        if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal property in the schema.
+        /// </summary>
+<#+
+        }
+#>
+        private DbSet<<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal
+        {
+            get;
+            set;
+        }
+<#+
+      }
+      else
+      {
+       if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #> property in the schema.
+        /// </summary>
+<#+
+        }
+        string collectionType = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "DbQuery" : "DbSet";
+#>
+        <#= codeProvider.FormatClassAccess(cls.Access) #> <#= overrideModifier #><#= collectionType #><<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>
+        {
+            get;
+            set;
+        }
+<#+
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateClassExtensibilityMethodDefinitions()
+  // Class extensibility method definitions generation.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateClassExtensibilityMethodDefinitions(BaseClass type, string _namespace, bool implementEquals) {
+#>
+
+        #region Extensibility Method Definitions
+
+<#+
+    if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for OnCreated in the schema.
+        /// </summary>
+<#+
+    }
+#>
+        partial void OnCreated();
+<#+
+
+    if (implementEquals) {
+#>
+
+        public override bool Equals(object obj)
+        {
+<#+
+      if (type is Class && ((Class)type).BaseInheritance != null) {
+#>
+          if (!base.Equals(obj))
+          {
+            return false;
+          }
+
+<#+
+      }
+#>
+          <#= codeProvider.GetValidIdentifier(type.Name) #> toCompare = obj as <#= codeProvider.GetValidIdentifier(type.Name) #>;
+          if (toCompare == null)
+          {
+            return false;
+          }
+
+<#+
+      foreach (EntityProperty prop in (type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow).Any() ? type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow) : type.Properties.Where(p => !((EntityProperty)p).Shadow))) { 
+#>
+          if (!Object.Equals(this.<#= codeProvider.GetValidIdentifier(prop.Name) #>, toCompare.<#= codeProvider.GetValidIdentifier(prop.Name) #>))
+            return false;
+<#+
+      }
+#>
+
+          return true;
+        }
+
+        public override int GetHashCode()
+        {
+          int hashCode = 13;
+<#+
+      foreach (EntityProperty prop in (type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow).Any() ? type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow) : type.Properties.Where(p => !p.Nullable && !((EntityProperty)p).Shadow))) {
+#>
+          hashCode = (hashCode * 7) + <#= codeProvider.GetValidIdentifier(prop.Name) #>.GetHashCode();
+<#+
+      }
+#>
+          return hashCode;
+        }
+<#+
+    }
+
+    if (PropertyChangePartialMethods) {
+      string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+      foreach (EntityProperty property in type.Properties) {
+        if (!(bool)property.Shadow) {
+#>
+<#+
+          if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for On<#= property.Name #>Changing in the schema.
+        /// </summary>
+<#+
+          }
+#>
+        partial void On<#= property.Name #>Changing(<#= GetPropertyTypeName(property, _namespace, defaultNamespace) #> value);
+
+<#+
+          if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for On<#= property.Name #>Changed in the schema.
+        /// </summary>
+<#+
+          }
+#>
+        partial void On<#= property.Name #>Changed();
+<#+
+        }
+      }
+#>
+<#+
+      Class cls = type as Class;
+      if (cls != null) {
+        foreach (EntityRelationProperty property in cls.RelationProperties ) {
+          if (!property.Generate || property.Multiplicity == Multiplicity.Many)
+            continue;
+            string nspace = !string.IsNullOrEmpty(property.RelationClass.Namespace) ? codeProvider.GetValidIdentifier(property.RelationClass.Namespace) : defaultNamespace;
+            string className = codeProvider.GetValidIdentifier(property.RelationClass.Name);
+            if (nspace != _namespace)
+              className = nspace + "." + className;
+#> 
+<#+
+          if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for On<#= property.Name #>Changing in the schema.
+        /// </summary>
+<#+
+          }
+#>
+        partial void On<#= property.Name #>Changing(<#= className #> value);
+
+<#+
+          if (GenerateDummyComments) {
+#>        
+        /// <summary>
+        /// There are no comments for On<#= property.Name #>Changed in the schema.
+        /// </summary>
+<#+
+          }
+#>
+        partial void On<#= property.Name #>Changed();
+<#+
+        }
+      }
+    }
+#>
+
+        #endregion
+<#+
+   }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateProperty()
+  // Property generation for classes.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateProperty(EntityProperty property, int propertyOrder, bool supportPropertyChanging, string _namespace, ServerInfoBase serverInfo, bool emptyInheritanceModifier) {
+#>
+
+<#+
+    string propertyAccess = string.Empty;
+    string getAccess = string.Empty;
+    string setAccess = string.Empty;
+    string propInheritanceModifier = property.InheritanceModifier == MemberInheritanceModifier.None || emptyInheritanceModifier ? "" : " " + codeProvider.FormatMemberInheritanceModifier(property.InheritanceModifier);
+    GetMemberAccessModifiers(property.GetterModifier, property.SetterModifier, ref propertyAccess, ref getAccess, ref setAccess);
+
+    string propType = GetPropertyTypeName(property, _namespace, codeProvider.GetValidIdentifier(model.GetDefaultNamespace()));
+    string propName = codeProvider.GetValidIdentifier(property.Name);
+    bool isAutoProperty = !supportPropertyChanging && !PropertyChangePartialMethods;
+
+    output.Indent++;
+    GenerateDocumentation(property.Documentation, property.Name);
+    output.Indent--;
+
+    if (GenerateDataContracts && !(bool)property.GetProperty("DoNotGenerateDataMemberAttribute")) {
+#>
+        [DataMember(Order=<#= propertyOrder #>)]
+<#+
+    }
+
+    foreach (AttributeValue attribute in property.Attributes) {
+      output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+        <#= codeProvider.FormatAttributeValue(attribute) #>
+<#+
+    }
+
+    // Generate validation attributes for property
+    GeneratePropertyValidationAttributes(property, false);
+
+    // Generate DisplayName attribute for property
+    if (!string.IsNullOrEmpty(property.DisplayName)) {
+#>
+        [System.ComponentModel.DisplayName("<#= property.DisplayName #>")]
+<#+
+    }
+
+    GenerateSerializationAttributes(property, serverInfo);
+
+    // Property code
+#>
+        <#= propertyAccess == "private" ? propertyAccess : propertyAccess + propInheritanceModifier #> <#= propType #> <#= propName #><#+
+    if (isAutoProperty) {
+      #> { <#= getAccess #>get; <#= setAccess #>set; }
+<#+
+    }
+    else {
+#>
+
+        {
+            <#= getAccess #>get
+            {
+                return this._<#= property.Name #>;
+            }
+            <#= setAccess #>set
+            {
+<#+
+      if (supportPropertyChanging || PropertyChangePartialMethods) {
+#>
+                if (this._<#= property.Name #> != value)
+                {
+<#+
+        if (PropertyChangePartialMethods) {
+#>
+                    this.On<#= property.Name #>Changing(value);
+<#+
+        }
+        if (supportPropertyChanging) {
+#>
+                    this.SendPropertyChanging("<#= codeProvider.GetValidIdentifier(property.Name) #>");
+<#+
+        }
+        output.Indent++;
+      }
+#>
+                this._<#= property.Name #> = value;
+<#+
+      if (supportPropertyChanging || PropertyChangePartialMethods) {
+        output.Indent--;
+        if (supportPropertyChanging) {
+#>
+                    this.SendPropertyChanged("<#= codeProvider.GetValidIdentifier(property.Name) #>");
+<#+
+        }
+        if (PropertyChangePartialMethods) {
+#>
+                    this.On<#= property.Name #>Changed();
+<#+
+        }
+#>
+                }
+<#+
+      }
+#>
+            }
+        }
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateRelationProperty()
+  // Navigation property generation for entity classes.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateRelationProperty(EntityRelationProperty relationProperty, int propertyOrder, bool supportPropertyChanging, string _namespace) { #>
+
+<#+
+    string propertyAccess = string.Empty;
+    string getAccess = string.Empty;
+    string setAccess = string.Empty;
+    GetMemberAccessModifiers(relationProperty.GetterModifier, relationProperty.SetterModifier, ref propertyAccess, ref getAccess, ref setAccess);
+    string propInheritanceModifier = relationProperty.InheritanceModifier == MemberInheritanceModifier.None ? "" : " " + codeProvider.FormatMemberInheritanceModifier(relationProperty.InheritanceModifier);
+    string propName = codeProvider.GetValidIdentifier(relationProperty.Name);
+    string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+    string dataType = GetRelationPropertyTypeName(relationProperty, _namespace, defaultNamespace);
+
+    output.Indent++;
+    GenerateDocumentation(relationProperty.Documentation, relationProperty.Name);
+    output.Indent--;
+
+    if (GenerateDataContracts && !(bool)relationProperty.GetProperty("DoNotGenerateDataMemberAttribute")) {
+#>
+        [DataMember(Order=<#= propertyOrder #>, EmitDefaultValue=false)]
+<#+ }
+
+    foreach (AttributeValue attribute in relationProperty.Attributes) {
+      output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+        <#= codeProvider.FormatAttributeValue(attribute) #>
+<#+
+    }
+
+    // Generate DisplayName attribute for property
+    if (!string.IsNullOrEmpty(relationProperty.DisplayName)) {
+#>
+        [System.ComponentModel.DisplayName("<#= relationProperty.DisplayName #>")]
+<#+
+    }
+
+    GenerateSerializationAttributes(relationProperty);
+
+    // Navigation property code
+#>
+
+        <#= propertyAccess == "private" ? propertyAccess : propertyAccess + propInheritanceModifier #> <#= dataType #> <#= propName #><#+
+    if (!supportPropertyChanging && !PropertyChangePartialMethods && !relationProperty.Lazy) {
+      #> { <#= getAccess #>get; <#= setAccess #>set; }
+<#+
+    }
+    else
+    {
+#>
+
+        {
+            <#= getAccess #>get
+            {
+<#+
+        if (relationProperty.Lazy) {
+#>
+                return LazyLoader?.Load(this, ref _<#= relationProperty.Name #>);
+<#+
+        }
+        else {
+#>
+                return this._<#= relationProperty.Name #>;
+<#+
+        }
+#>
+            }
+            <#= setAccess #>set
+            {
+<#+
+        if (relationProperty.Multiplicity != Multiplicity.Many && (supportPropertyChanging || PropertyChangePartialMethods)) {
+#>
+                if (this._<#= relationProperty.Name #> != value)
+                {
+<#+
+          if (PropertyChangePartialMethods) {
+#>
+                    this.On<#= relationProperty.Name #>Changing(value);
+<#+
+          }
+          if (supportPropertyChanging) {
+#>
+                    this.SendPropertyChanging("<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>");
+<#+
+          }
+          output.Indent++;
+        }
+#>
+                this._<#= relationProperty.Name #> = value;
+<#+
+        if (relationProperty.Multiplicity != Multiplicity.Many && (supportPropertyChanging || PropertyChangePartialMethods)) {
+          output.Indent--;
+          if (supportPropertyChanging) {
+#>
+                    this.SendPropertyChanged("<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>");
+<#+
+          }
+          if (PropertyChangePartialMethods) {
+#>
+                    this.On<#= relationProperty.Name #>Changed();
+<#+
+        }
+#>
+                }
+<#+
+      }
+#>
+            }
+        }
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateDocumentation()
+  // Documentation comments generation for classes, properties and methods.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateDocumentation(Documentation doc, string name) {
+
+    if (!GenerateDummyComments && string.IsNullOrEmpty(doc.Summary) && string.IsNullOrEmpty(doc.LongDescription))
+      return;
+#>
+    /// <summary>
+<#+
+    if (!string.IsNullOrEmpty(doc.Summary)) {
+      foreach (string str in doc.Summary.Split('\n')) {
+#>
+    /// <#= System.Security.SecurityElement.Escape(str.TrimEnd('\r')) #>
+<#+
+      }
+    }
+    else {
+#>
+    /// There are no comments for <#= name #> in the schema.
+<#+
+    }
+#>
+    /// </summary>
+<#+
+    if (!string.IsNullOrEmpty(doc.LongDescription)) {
+#>
+    /// <remark>
+<#+
+      foreach (string str in doc.LongDescription.Split('\n')) {
+#>
+    /// <#= System.Security.SecurityElement.Escape(str.TrimEnd('\r')) #>
+<#+
+      }
+#>
+    /// </remark>
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateICloneable()
+  // ICloneable implementation 
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateICloneable(BaseClass baseClass, string parentNamespace, string defaultNamespace) {
+#>
+
+        #region ICloneable Members
+
+<#+
+    if (baseClass is Class && ((Class)baseClass).InheritanceModifier == ClassInheritanceModifier.Abstract) {
+#>
+        public abstract object Clone();
+<#+
+    }
+    else {
+#>
+        public <#+ if (baseClass is Class && ((Class)baseClass).BaseInheritance != null) { #>override<#+ } else { #>virtual<#+ } #> object Clone()
+        {
+            <#= codeProvider.GetValidIdentifier(baseClass.Name) #> obj = new <#= codeProvider.GetValidIdentifier(baseClass.Name) #>();
+<#+
+      List<Property> properties = new List<Property>();
+      if (baseClass is Class)
+        properties.AddRange(((Class)baseClass).BaseProperties);
+      properties.AddRange(baseClass.Properties);
+
+      foreach (Property prop in properties.Where(p => !((EntityProperty)p).Shadow)) {
+        if (prop.IsComplexType) {
+          string nspace = !string.IsNullOrEmpty(((ICodeElement)prop.Type).Namespace) ? codeProvider.GetValidIdentifier(((ICodeElement)prop.Type).Namespace) : defaultNamespace;
+          string propertyDataType = codeProvider.GetValidIdentifier(prop.Type.ToString());
+          if (nspace != parentNamespace)
+            propertyDataType = nspace + "." + propertyDataType;
+#>
+            obj.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyDataType #>)<#= codeProvider.GetValidIdentifier(prop.Name) #>.Clone();
+<#+
+        }
+        else {
+#>
+            obj.<#= codeProvider.GetValidIdentifier(prop.Name) #> = <#= codeProvider.GetValidIdentifier(prop.Name) #>;
+<#+
+        }
+      }
+#>
+            return obj;
+        }
+<#+
+    }
+#>
+
+        #endregion
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextMethods()
+  // DbContext methods generation.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextMethods(string contextNamespace, string defaultNamespace, ServerInfoBase serverInfo) {
+
+    if (model.Methods.Count > 0) {
+#>
+
+        #region Methods
+<#+
+    }
+
+    foreach (EntityMethod method in model.Methods) {
+      if (((bool)method.GetProperty("DirectCall"))) {
+        GenerateContextDirectCallMethod(method, contextNamespace, defaultNamespace, serverInfo, false);
+        if (((bool)method.GetProperty("GenerateAsync")))
+          GenerateContextDirectCallMethod(method, contextNamespace, defaultNamespace, serverInfo, true);
+      }
+      else
+        GenerateContextStaticLinqMethod(method, contextNamespace, defaultNamespace);
+    }
+    if (model.Methods.Count > 0) {
+#>
+
+        #endregion
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextDirectCallMethod
+  // Direct call method generation.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextDirectCallMethod(EntityMethod method, string contextNamespace, string defaultNamespace, ServerInfoBase serverInfo, bool isAsync) {
+
+    string methodAccess = codeProvider.FormatMemberAccess(method.Access);
+    string inheritanceModifier = method.InheritanceModifier == MemberInheritanceModifier.None ? "" : " " + codeProvider.FormatMemberInheritanceModifier(method.InheritanceModifier);
+    //bool hasOutputParameters = method.Parameters.FirstOrDefault(p => p.Direction != ParameterDirection.Input) != null;
+
+    // Parameter list
+    List<string> methodParameters = new List<string>();
+    Dictionary<EntityParameter, string> returnTuple = new Dictionary<EntityParameter, string>();
+    foreach (EntityParameter parameter in method.Parameters) {
+      string typeName = GetTypeName(parameter.Type, contextNamespace, defaultNamespace, true);
+      string paramName = codeProvider.GetValidIdentifier(parameter.Name);
+      if (isAsync) {
+        if (parameter.Direction == ParameterDirection.Output || parameter.Direction == ParameterDirection.InputOutput)
+          returnTuple.Add(parameter, typeName);
+        if (parameter.Direction != ParameterDirection.Output)
+          methodParameters.Add(typeName + " " + paramName);
+      }
+      else {
+        string refPrefix = parameter.Direction == ParameterDirection.InputOutput ? "ref " : parameter.Direction == ParameterDirection.Output ? "out " : string.Empty;
+        methodParameters.Add(refPrefix + typeName + " " + paramName);
+      }
+    }
+
+    // Method return type
+    string returnType = "";
+    string resultType = "";
+    switch (method.MethodType) {
+      case MethodType.EntityResult:
+      case MethodType.ValueTypeResult:
+        resultType = string.Format("List<{0}>", GetCodeElementReference((BaseClass)method.ReturnType, contextNamespace));
+        break;
+      case MethodType.ScalarResult:
+        resultType = codeProvider.GetNullableType(true, method.ReturnType);
+        break;
+      case MethodType.Procedure:
+        resultType = "void";
+        break;
+      case MethodType.MultipleResult:
+        resultType = string.Format("{0}MultipleResult", method.Name);
+        break;
+      default:
+        return;
+    }
+
+    if (isAsync && returnTuple.Count > 0) {
+      if (method.MethodType != MethodType.Procedure)
+        returnType = string.Format("Tuple<{0}, {1}>", codeProvider.Join(", ", returnTuple.Values.ToArray()), resultType);
+      else
+        returnType = string.Format("Tuple<{0}>", codeProvider.Join(", ", returnTuple.Values.ToArray()));
+    }
+    else
+      returnType = resultType;
+#>
+
+<#+
+    output.Indent++;
+    GenerateDocumentation(method.Documentation, method.Name);
+    output.Indent--;
+
+    foreach (AttributeValue attribute in method.Attributes) {
+      output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+        <#= codeProvider.FormatAttributeValue(attribute) #>
+<#+
+    }
+#>
+        <#= methodAccess #><#+ if (isAsync) { #> async<#+ } #><#= inheritanceModifier #> <#= !isAsync ? returnType : (returnType == "void" ? "Task" : string.Format("Task<{0}>", returnType)) #> <#= method.Name #><#+ if (isAsync) { #>Async<#+ } #> (<#= codeProvider.Join(", ", methodParameters.ToArray()) #>)
+        {
+
+<#+
+    if (method.MethodType != MethodType.Procedure) {
+#>
+            <#= resultType #> result<#+ if (method.MethodType != MethodType.ScalarResult) { #> = new <#= resultType #>()<#+ } #>;
+<#+
+    }
+    if (isAsync) {
+      foreach (var param in returnTuple) {
+        if (param.Key.Direction == ParameterDirection.Output) {
+#>
+            <#= param.Value #> <#= codeProvider.GetValidIdentifier(param.Key.Name) #>;
+<#+
+        }
+      }
+    }
+
+    // local variables
+    var names = method.Parameters.Select(p => p.Name);
+    string connectionVar = NamesValidator.GetValidName("connection", names);
+    string needCloseVar = NamesValidator.GetValidName("needClose", names);
+    string cmdVar = NamesValidator.GetValidName("cmd", names);
+    string readerVar = NamesValidator.GetValidName("reader", names);
+#>
+            DbConnection <#= connectionVar #> = this.Database.GetDbConnection();
+            bool <#= needCloseVar #> = false;
+            if (<#= connectionVar #>.State != ConnectionState.Open)
+            {
+<#+
+    if (isAsync) {
+#>
+                await <#= connectionVar #>.OpenAsync();
+<#+
+    } else {
+#>
+                <#= connectionVar #>.Open();
+<#+
+    }
+#>
+                <#= needCloseVar #> = true;
+            }
+
+            try
+            {
+                using (DbCommand <#= cmdVar #> = <#= connectionVar #>.CreateCommand())
+                {
+                    if (this.Database.GetCommandTimeout().HasValue)
+                        <#= cmdVar #>.CommandTimeout = this.Database.GetCommandTimeout().Value;
+<#+
+    if (!string.IsNullOrEmpty(method.Procedure) && !method.TableValuedFunction) {
+#>
+                    <#= cmdVar #>.CommandType = CommandType.StoredProcedure;
+                    <#= cmdVar #>.CommandText = @"<#= codeProvider.GetQuotedString(method.Procedure) #>";
+<#+
+    } else {
+#>
+                    <#= cmdVar #>.CommandType = CommandType.Text;
+                    <#= cmdVar #>.CommandText = @"<#= codeProvider.GetQuotedString(method.SQL) #>";
+<#+
+    }
+
+    foreach (EntityParameter parameter in method.Parameters) {
+      string parameterName = codeProvider.GetValidIdentifier(parameter.Name);
+      string parameterVar = parameter.Name + "Parameter";
+      string typeName = GetTypeName(parameter.Type, contextNamespace, defaultNamespace, true);
+      EntityDataType type = parameter.IsEnumType ? ((EntityEnumType)parameter.Type).EntityUnderlyingDataType : (EntityDataType)parameter.Type;
+      System.Data.DbType dbType = type.ToDbType();
+      Vendor vendor = model.GetVendor();
+      if (vendor != null)
+        dbType = vendor.GetParameterType(dbType, parameter.ServerType);
+#>
+
+                    DbParameter <#= parameterVar #> = <#= cmdVar #>.CreateParameter();
+                    <#= parameterVar #>.ParameterName = "<#= parameterName #>";
+                    <#= parameterVar #>.Direction = ParameterDirection.<#= parameter.Direction.ToString() #>;
+                    <#= parameterVar #>.DbType = DbType.<#= dbType #>;
+<#+
+      if (parameter.MaxLength > 0) {
+#>
+                    <#= parameterVar #>.Size = <#= parameter.MaxLength.ToString() #>;
+<#+
+      }
+      if (parameter.Precision > 0) {
+#>
+                    <#= parameterVar #>.Precision = <#= parameter.Precision.ToString() #>;
+<#+
+        if (parameter.Scale >= 0) {
+#>
+                    <#= parameterVar #>.Scale = <#= parameter.Scale.ToString() #>;
+<#+
+        }
+      }
+
+      if (parameter.Direction != ParameterDirection.Output) {
+        if (!parameter.IsEnumType && ((EntityDataType)parameter.Type).ToNetType().IsValueType) {
+#>
+                    if (<#= parameterName #>.HasValue)
+                    {
+                        <#= parameterVar #>.Value = <#= parameterName #>.Value;
+                    }
+<#+
+        }
+        else {
+#>
+                    if (<#= parameterName #> != null)
+                    {
+                        <#= parameterVar #>.Value = <#= parameterName #>;
+                    }
+<#+
+        }
+#>
+                    else
+                    {
+<#+
+      }
+#>
+<#+
+      string providerInvariantName = model.GetProviderName();
+      if (parameter.MaxLength <= 0 && providerInvariantName != ProvidersManager.OracleDPManagedInvariantName && providerInvariantName != ProvidersManager.OracleDPInvariantName) {
+#>
+                    <#+ if (parameter.Direction != ParameterDirection.Output) { #>    <#+ } #><#= parameterVar #>.Size = -1;
+<#+
+      }
+#>
+                    <#+ if (parameter.Direction != ParameterDirection.Output) { #>    <#+ } #><#= parameterVar #>.Value = DBNull.Value;
+<#+
+      if (parameter.Direction != ParameterDirection.Output) {
+#>
+                    }
+<#+
+      }
+#>
+                    <#= cmdVar #>.Parameters.Add(<#= parameterVar #>);
+<#+
+    }
+
+    switch (method.MethodType) {
+      case MethodType.EntityResult:
+      case MethodType.ValueTypeResult:
+        BaseClass type = (BaseClass)method.ReturnType;
+#>
+<#+
+        if (isAsync) {
+#>
+                    using (IDataReader <#= readerVar #> = await <#= cmdVar #>.ExecuteReaderAsync())
+<#+
+        } else {
+#>
+                    using (IDataReader <#= readerVar #> = <#= cmdVar #>.ExecuteReader())
+<#+
+        }
+#>
+                    {
+                        var fieldNames = Enumerable.Range(0, <#= readerVar #>.FieldCount).Select(i => <#= readerVar #>.GetName(i)).ToArray();
+                        while (<#= readerVar #>.Read())
+                        {
+                            <#= GetCodeElementReference(type, contextNamespace) #> row = new <#= GetCodeElementReference(type, contextNamespace) #>();
+<#+
+        foreach (EntityProperty prop in type.Properties)
+          GenerateMethodPropertyRead(method, prop, "", new PropertyMappingKey(null), contextNamespace, serverInfo, readerVar);
+#>
+                            result.Add(row);
+                        }
+                    }
+<#+
+        break;
+      case MethodType.Procedure:
+#>
+<#+
+        if (isAsync) {
+#>
+                    await <#= cmdVar #>.ExecuteNonQueryAsync();
+<#+
+        } else {
+#>
+                    <#= cmdVar #>.ExecuteNonQuery();
+<#+
+        }
+#>
+<#+
+        break;
+      case MethodType.ScalarResult:
+        EntityDataType retType = method.ReturnType is EntityEnumType ? ((EntityEnumType)method.ReturnType).EntityUnderlyingDataType : (EntityDataType)method.ReturnType;
+        string nonNullableResultType = codeProvider.GetNullableType(false, method.ReturnType);
+#>
+
+                    DbParameter returnValueParameter = <#= cmdVar #>.CreateParameter();
+                    returnValueParameter.Direction = ParameterDirection.ReturnValue;
+                    returnValueParameter.DbType = DbType.<#= retType.ToDbType() #>;
+<#+
+      string providerInvariantName = model.GetProviderName();
+      if (providerInvariantName != ProvidersManager.OracleDPManagedInvariantName && providerInvariantName != ProvidersManager.OracleDPInvariantName) {
+#>
+                    returnValueParameter.Size = -1;
+<#+
+      }
+#>
+                    <#= cmdVar #>.Parameters.Add(returnValueParameter);
+<#+
+        if (isAsync) {
+#>
+                    await <#= cmdVar #>.ExecuteNonQueryAsync();
+<#+
+        } else {
+#>
+                    <#= cmdVar #>.ExecuteNonQuery();
+<#+
+        }
+#>
+                    if (returnValueParameter.Value != null && !(returnValueParameter.Value is System.DBNull))
+                        result = (<#= nonNullableResultType #>)Convert.ChangeType(returnValueParameter.Value, typeof(<#= nonNullableResultType #>));
+                    else
+                        result = default(<#= resultType #>);
+<#+
+
+        break;
+      case MethodType.MultipleResult:
+#>
+<#+
+        if (isAsync) {
+#>
+                    using (IDataReader <#= readerVar #> = await <#= cmdVar #>.ExecuteReaderAsync())
+<#+
+        } else {
+#>
+                    using (IDataReader <#= readerVar #> = <#= cmdVar #>.ExecuteReader())
+<#+
+        }
+#>
+                    {
+                        string[] fieldNames;
+<#+
+        foreach (BaseClass res in (IList)method.ReturnType) {
+#>
+                        fieldNames = Enumerable.Range(0, <#= readerVar #>.FieldCount).Select(i => <#= readerVar #>.GetName(i)).ToArray();
+
+                        while (<#= readerVar #>.Read())
+                        {
+
+                            <#= GetCodeElementReference(res, contextNamespace) #> resultRow = new <#= GetCodeElementReference(res, contextNamespace) #>();
+<#+
+          foreach (EntityProperty prop in res.Properties) {
+            if (!prop.IsComplexType) {
+              string propertyType = codeProvider.GetNullableType(false, prop.Type);
+              string columnName = prop.Column.GetUsedName();
+              if (serverInfo != null)
+                columnName = serverInfo.UnQuoteName(columnName);
+              if (res.Properties.Count(p => !p.IsComplexType) == 1) {
+#>
+                            if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
+                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= propertyType #>));
+                            else
+<#+
+              }
+              if (!string.IsNullOrEmpty(columnName)) {
+#>
+                            if (fieldNames.Contains(@"<#= codeProvider.GetQuotedString(columnName) #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
+                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= propertyType #>));
+<#+
+                if (prop.Nullable) {
+#>
+                            else
+                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = null;
+<#+             }
+              }
+            }
+          }
+#>
+                            result.<#= codeProvider.GetPluralString(codeProvider.GetValidIdentifier(res.Name)) #>.Add(resultRow);
+                        }
+                        <#= readerVar #>.NextResult();
+
+<#+
+        }
+#>
+                    }
+
+<#+
+        break;
+    }
+
+    foreach (EntityParameter argument in method.Parameters) {
+      if (argument.Direction != ParameterDirection.Input) {
+        string argumentName = codeProvider.GetValidIdentifier(argument.Name);
+        string typeName = GetTypeName(argument.Type, contextNamespace, defaultNamespace, false);
+#>
+
+                    if (<#= cmdVar #>.Parameters["<#= argumentName #>"].Value != null && !(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value is System.DBNull))
+                        <#= argumentName #> = (<#= typeName #>)Convert.ChangeType(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value, typeof(<#= typeName #>));
+                    else
+                        <#= argumentName #> = default(<#= typeName #>);
+<#+
+      }
+    }
+#>
+                }
+            }
+            finally
+            {
+                if (<#= needCloseVar #>)
+                    <#= connectionVar #>.Close();
+            }
+<#+
+    if (isAsync && returnTuple.Count > 0) {
+      if (method.MethodType != MethodType.Procedure) {
+#>
+            return new <#= returnType #>(<#= codeProvider.Join(", ", returnTuple.Keys.Select(p=> codeProvider.GetValidIdentifier(p.Name)).ToArray()) #>, result);
+<#+
+      }
+      else {
+#>
+            return new <#= returnType #>(<#= codeProvider.Join(", ", returnTuple.Keys.Select(p=> codeProvider.GetValidIdentifier(p.Name)).ToArray()) #>);
+<#+
+      }
+    }
+    else if (method.MethodType != MethodType.Procedure) {
+#>
+            return result;
+<#+
+    }
+#>
+        }
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateContextStaticLinqMethod
+  // Static method generation for LINQ.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateContextStaticLinqMethod(EntityMethod method, string contextNamespace, string defaultNamespace) {
+
+    if (!string.IsNullOrEmpty(method.Procedure)) {
+
+      string methodAccess = codeProvider.FormatMemberAccess(method.Access);
+      string inheritanceModifier = method.InheritanceModifier == MemberInheritanceModifier.None ? "" : " " + codeProvider.FormatMemberInheritanceModifier(method.InheritanceModifier);
+
+      // Parameter list
+      List<string> lst = new List<string>();
+      foreach (EntityParameter parameter in method.Parameters) {
+        string typeName = GetTypeName(parameter.Type, contextNamespace, defaultNamespace, true);
+
+        string paramName = codeProvider.GetValidIdentifier(parameter.Name);
+        string refPrefix = parameter.Direction == ParameterDirection.InputOutput ? "ref " : parameter.Direction == ParameterDirection.Output ? "out " : string.Empty;
+        lst.Add(refPrefix + typeName + " " + paramName);
+      }
+
+      // Method return type
+      string returnType = "";
+      switch (method.MethodType) {
+        case MethodType.EntityResult:
+        case MethodType.ValueTypeResult:
+          returnType = string.Format("List<{0}>", GetCodeElementReference((BaseClass)method.ReturnType, contextNamespace));
+          break;
+        case MethodType.ScalarResult:
+          returnType = codeProvider.GetNullableType(true, method.ReturnType);
+          break;
+        case MethodType.Procedure:
+          returnType = "void";
+          break;
+        case MethodType.MultipleResult:
+          returnType = string.Format("{0}MultipleResult", method.Name);
+          break;
+        default:
+          return;
+      }
+#>
+
+<#+
+      output.Indent++;
+      GenerateDocumentation(method.Documentation, method.Name);
+      output.Indent--;
+
+      foreach (AttributeValue attribute in method.Attributes) {
+        output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
+#>
+        <#= codeProvider.FormatAttributeValue(attribute) #>
+<#+
+      }
+      int separatorIndex = method.Procedure.IndexOf(".");
+      if (separatorIndex > 0) {
+#>
+        [DbFunction(@"<#= method.Procedure.Substring(separatorIndex + 1) #>", @"<#= method.Procedure.Substring(0, separatorIndex) #>")]
+<#+
+      } else {
+#>
+        [DbFunction(@"<#= method.Procedure #>")]
+<#+
+      }
+#>
+        <#= methodAccess #> static <#= returnType #> <#= method.Name #> (<#= codeProvider.Join(", ", lst.ToArray()) #>)
+        {
+            throw new NotSupportedException("Direct calls are not supported.");
+        }
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // GenerateMethodPropertyRead(EntityProperty prop, PropertyMappingKey key)
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateMethodPropertyRead(EntityMethod method, EntityProperty prop, string namePrefix, PropertyMappingKey key, string contextNamespace, ServerInfoBase serverInfo, string readerVar) {
+
+    if (!prop.IsComplexType) {
+      string propertyType = codeProvider.GetNullableType(false, prop.Type);
+      string actualColumnType = prop.Type is EntityEnumType ? codeProvider.GetNullableType(false, ((EntityEnumType)prop.Type).EntityUnderlyingDataType) : propertyType;
+
+      string columnName;
+      var resMap = method.ResultTypeMapping.GetResultPropertyMapping(prop, key);
+      if (resMap != null)
+        columnName = resMap.Column;
+      else {
+        EntityColumn column = prop.GetColumn(key);
+        if (column == null)
+          return;
+        columnName = column.GetUsedName(key);
+      }
+      if (serverInfo != null)
+        columnName = serverInfo.UnQuoteName(columnName);
+
+      if (prop.ParentClass.Properties.Count(p => !p.IsComplexType) == 1) {
+#>
+                            if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
+                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= actualColumnType #>));
+                            else
+<#+
+      }
+#>
+                            if (fieldNames.Contains("<#= columnName #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
+                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= actualColumnType #>));
+<#+
+      if (prop.Nullable) {
+#>
+                            else
+                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = null;
+<#+   }
+#>
+
+<#+
+    }
+    else {
+      ComplexType type = (ComplexType)prop.Type;
+
+#>
+                            row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = new <#= GetCodeElementReference(type, contextNamespace) #>();
+<#+
+      // generate properties mapping
+      foreach (EntityProperty p in type.Properties)
+        GenerateMethodPropertyRead(method, p, namePrefix + codeProvider.GetValidIdentifier(prop.Name) + ".", new PropertyMappingKey(key.PropertyPath, prop), contextNamespace, serverInfo, readerVar);
+    }
+ }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateFluentClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo)
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateFluentClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo) {
+#>
+
+        #region <#= codeProvider.GetValidIdentifier(cls.Name) #> Mapping
+
+<#+
+    if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for <#= cls.Name #>Mapping in the schema.
+        /// </summary>
+<#+
+    }
+#>
+        private void <#= cls.Name #>Mapping(ModelBuilder modelBuilder)
+        {
+<#+
+    GenerateClassMapping(cls, contextNamespace, serverInfo);
+#>
+        }
+
+<#+
+    if (GenerateDummyComments) {
+#>
+        /// <summary>
+        /// There are no comments for Customize<#= cls.Name #>Mapping in the schema.
+        /// </summary>
+<#+
+    }
+#>
+        partial void Customize<#= cls.Name #>Mapping(ModelBuilder modelBuilder);
+
+        #endregion
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateConfigurationClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo)
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateConfigurationClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo) {
+
+    GenerateClassMapping(cls, contextNamespace, serverInfo);
+
+    // foreign keys
+    foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
+      if (relationProperty.Generate) {
+        EntityRelationProperty oppositeRelationProperty = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+        if (relationProperty.Multiplicity == Multiplicity.Many) {
+          if (oppositeRelationProperty.Multiplicity != Multiplicity.Many) { // One-To-Many or ZeroOrOne-To-Many
+#>
+            builder.<#+ GenerateCollectionRelationPropertyMapping(relationProperty, serverInfo); #>;
+<#+
+          }
+          else { // Many-To-Many
+#>
+            builder.<#+ GenerateManyToManyRelationPropertyMapping(relationProperty, serverInfo); #>;
+<#+
+          }
+        }
+        else {
+          if (relationProperty.Multiplicity == Multiplicity.ZeroOrOne || // ZeroOrOne-To-One or ZeroOrOne-To-Many
+              oppositeRelationProperty.Multiplicity == Multiplicity.One || // One-To-One
+              oppositeRelationProperty.Multiplicity == Multiplicity.Many) { // One-To-Many
+#>
+            builder.<#+ GenerateHasOneRelationPropertyMapping(relationProperty); #>;
+<#+
+          }
+        }
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo)
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo) {
+
+    string schema = cls.Schema;
+    if (string.IsNullOrEmpty(schema))
+      schema = model.DefaultSchema;
+    if (serverInfo != null)
+      schema = serverInfo.UnQuoteName(schema);
+
+    string table = cls.Table;
+    if (string.IsNullOrEmpty(table))
+      table = cls.GetDefaultTableName();
+    if (serverInfo != null)
+      table = serverInfo.UnQuoteName(table);
+
+    EntityInheritance inheritance = (EntityInheritance)cls.BaseInheritance;
+    if (inheritance != null && inheritance.Type == InheritanceType.TPH) { // derived TPH class
+      EntityClass rootBaseClass = (EntityClass)inheritance.BaseClass;
+      while (rootBaseClass.BaseInheritance != null) {
+        rootBaseClass = (EntityClass)rootBaseClass.BaseInheritance.BaseClass;
+      }
+
+      schema = rootBaseClass.Schema;
+      if (string.IsNullOrEmpty(schema))
+        schema = model.DefaultSchema;
+      if (serverInfo != null)
+        schema = serverInfo.UnQuoteName(schema);
+
+      table = rootBaseClass.Table;
+      if (string.IsNullOrEmpty(table))
+        table = rootBaseClass.GetDefaultTableName();
+      if (serverInfo != null)
+        table = serverInfo.UnQuoteName(table);
+    }
+    bool isAbstractRootTpc = inheritance == null && cls.DerivedInheritances.Count > 0 && cls.InheritanceType == InheritanceType.TPC && cls.IsAbstract;
+
+    if (cls.QueryType && model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version3) {
+      GenerateEntityMapping(cls, contextNamespace);
+      #>.HasNoKey();
+<#+
+    }
+
+    if (string.IsNullOrEmpty(cls.RawSQLQuery)) {
+      if (model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version2 ||
+          inheritance == null && !isAbstractRootTpc ||
+          inheritance != null && inheritance.Type == InheritanceType.TPT ||
+          inheritance != null && inheritance.Type == InheritanceType.TPC && !cls.IsAbstract
+      ) {
+        if (cls.QueryType) {
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.ToView(@"<#= codeProvider.GetQuotedString(table) #>"<#+ if (!string.IsNullOrEmpty(schema)) { #>, @"<#= codeProvider.GetQuotedString(schema) #>"<#+ } #>);
+<#+
+        }
+        else {
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.ToTable(@"<#= codeProvider.GetQuotedString(table) #>"<#+
+          if (!string.IsNullOrEmpty(schema)) {
+            #>, @"<#= codeProvider.GetQuotedString(schema) #>"<#+
+          }
+          if ((model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version6 && cls.Temporal) ||
+              (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version7 && cls.Triggers.Count > 0)) {
+            #>, x => {
+<#+
+
+            if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version6 && cls.Temporal) {
+#>              x.IsTemporal(<#+
+              if (!string.IsNullOrEmpty(cls.TemporalPeriodStart) || !string.IsNullOrEmpty(cls.TemporalPeriodEnd) || !string.IsNullOrEmpty(cls.TemporalHistoryTable)) {
+                #>temporal => {
+<#+
+                if (!string.IsNullOrEmpty(cls.TemporalPeriodStart)) {
+#>                temporal.HasPeriodStart(@"<#= codeProvider.GetQuotedString(cls.TemporalPeriodStart) #>");
+<#+
+                }
+                if (!string.IsNullOrEmpty(cls.TemporalPeriodEnd)) {
+#>                temporal.HasPeriodEnd(@"<#= codeProvider.GetQuotedString(cls.TemporalPeriodEnd) #>");
+<#+
+                }
+                if (!string.IsNullOrEmpty(cls.TemporalHistoryTable)) {
+#>                temporal.UseHistoryTable(@"<#= codeProvider.GetQuotedString(cls.TemporalHistoryTable) #>");
+<#+
+                }
+#>              }<#+
+              }
+            #>);
+<#+
+            }
+
+            if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version7 && cls.Triggers.Count > 0) {
+              foreach (EntityTrigger trigger in cls.Triggers) {
+#>              x.HasTrigger(@"<#= codeProvider.GetQuotedString(trigger.Name) #>");
+<#+
+              }
+            }
+#>            }<#+
+          }
+          #>);
+<#+
+        }
+      }
+    }
+    else if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
+      GenerateEntityMapping(cls, contextNamespace);
+      #>.ToSqlQuery(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>");
+<#+
+    }
+    else if (cls.QueryType && !SelfContainedEntityConfiguration) {
+      string fromSqlMethodName = model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version2 ? "FromSql" : "FromSqlRaw";
+      GenerateEntityMapping(cls, contextNamespace);
+      #>.ToQuery(() => this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>.<#= fromSqlMethodName #>(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>"));
+<#+
+    }
+
+    // inheritance
+    if (inheritance == null && cls.DerivedInheritances.Count > 0) { // root class
+      switch (cls.InheritanceType) {
+        case InheritanceType.TPH:
+          string discriminatorColumn = cls.Discriminator.Column.GetUsedName();
+          if (serverInfo != null)
+            discriminatorColumn = serverInfo.UnQuoteName(discriminatorColumn);
+
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.HasDiscriminator(@"<#= codeProvider.GetQuotedString(discriminatorColumn) #>", typeof(<#= GetTypeName(cls.Discriminator.Type, contextNamespace, contextNamespace, false) #>))<#+
+
+          if (!string.IsNullOrEmpty(cls.DiscriminatorValue)) {
+            #>.HasValue<<#= GetCodeElementReference(cls, contextNamespace) #>>(<#= cls.Discriminator.Type == EntityDataType.String ? codeProvider.FormatStringValue(cls.DiscriminatorValue) : codeProvider.FormatPropertyValue(cls.Discriminator.Type, cls.DiscriminatorValue) #>)<#+
+          }
+          foreach (EntityClass deriveClass in cls.DerivedClasses) {
+            #>.HasValue<<#= GetCodeElementReference(deriveClass, contextNamespace) #>>(<#= cls.Discriminator.Type == EntityDataType.String ? codeProvider.FormatStringValue(deriveClass.DiscriminatorValue) : codeProvider.FormatPropertyValue(cls.Discriminator.Type, deriveClass.DiscriminatorValue) #>)<#+
+          }
+          #>;
+<#+
+        #>
+<#+
+          break;
+
+        case InheritanceType.TPT:
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.UseTptMappingStrategy();
+<#+
+          break;
+        case InheritanceType.TPC:
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.UseTpcMappingStrategy();
+<#+
+          break;
+      }
+    }
+
+    // properties
+    foreach (EntityProperty prop in cls.Properties) {
+      if (!((bool)prop.GetProperty("DoNotGenerateMapping"))) {
+        if (!prop.IsComplexType) {
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.<#+
+          GeneratePropertyMap(prop, new PropertyMappingKey(null), serverInfo); #>;
+<#+
+        }
+        else {
+#>
+<#+
+          string prefix = GetEntityMappingPrefix(cls, contextNamespace) + ".";
+          GenerateComponentPropertyMap(prefix, prop, new PropertyMappingKey(null), serverInfo);
+#>
+<#+
+        }
+      }
+    }
+
+    // primary key
+    string pkFields = string.Join(", ", cls.Properties.Where(p => p.PrimaryKey).OfType<EntityProperty>().OrderBy(p => p.PrimaryKeyIndex).Select(p => "@\"" + p.Name + "\"").ToArray());
+    if (!string.IsNullOrEmpty(pkFields)) {
+      GenerateEntityMapping(cls, contextNamespace);
+      #>.HasKey(<#= pkFields #>);
+<#+
+    }
+
+    // alternate keys
+    foreach (var alternateKeys in cls.Properties.OfType<EntityProperty>().Where(p => p.AlternateKey).GroupBy(g => g.AlternateKeyName)) {
+      if (string.IsNullOrEmpty(alternateKeys.Key)) {
+        foreach (EntityProperty uk in alternateKeys) {
+          GenerateEntityMapping(cls, contextNamespace);
+          #>.HasAlternateKey(@"<#= uk.Name #>");
+<#+
+        }
+      }
+      else {
+        string ukFields = string.Join(", ", alternateKeys.Select(p => "@\"" + p.Name + "\"").ToArray());
+        GenerateEntityMapping(cls, contextNamespace);
+        #>.HasAlternateKey(<#= ukFields #>).HasName(@"<#= codeProvider.GetQuotedString(alternateKeys.Key) #>");
+<#+
+      }
+    }
+
+    // unique keys
+    var nullList = new List<string>() { null };
+
+    foreach (var uniqueKeys in cls.Properties
+                                  .OfType<EntityProperty>()
+                                  .Where(p => !p.IsComplexType && (p.Column.Unique || (p.Column.UniqueKeys != null && p.Column.UniqueKeys.Count > 0)))
+                                  .SelectMany(p => p.Column.UniqueKeys ?? nullList, (p, uk) => new { p, uk })
+                                  .GroupBy(g => g.uk, g => g.p)) {
+      string prefix = GetEntityMappingPrefix(cls, contextNamespace) + ".";
+      GenerateUniqueKey(prefix, uniqueKeys);
+    }
+    foreach (EntityProperty prop in cls.Properties.OfType<EntityProperty>().Where(p => p.IsComplexType)) {
+      string prefix = GetEntityMappingPrefix(cls, contextNamespace) + ".";
+      GenerateUniqueKeyForComplexType(prefix, prop);
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  /// <summary>
+  /// Start of entity fluent mapping generation.
+  /// </summary>
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateEntityMapping(EntityClass cls, string contextNamespace) {
+
+    if (SelfContainedEntityConfiguration) {
+#>
+            builder<#+
+    }
+    else {
+      string rootMethod = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
+#>
+            modelBuilder.<#= rootMethod #><<#= GetCodeElementReference(cls, contextNamespace) #>>()<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  /// <summary>
+  /// Start of entity fluent mapping generation.
+  /// </summary>
+  //////////////////////////////////////////////////////////////////////////////////
+  private string GetEntityMappingPrefix(EntityClass cls, string contextNamespace) {
+
+    if (SelfContainedEntityConfiguration) {
+      return "builder";
+    }
+    else {
+      string rootMethod = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
+      return "modelBuilder." + rootMethod + "<" + GetCodeElementReference(cls, contextNamespace) + ">()";
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // GeneratePropertyMap(EntityProperty prop, PropertyMappingKey key, ServerInfoBase serverInfo)
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GeneratePropertyMap(EntityProperty prop, PropertyMappingKey key, ServerInfoBase serverInfo) {
+
+    EntityColumn column = prop.GetColumn(key);
+
+    // no mapping for complex type property
+    if (column == null)
+      return;
+
+    string columnName = column.GetUsedName(key);
+    if (serverInfo != null)
+      columnName = serverInfo.UnQuoteName(columnName);
+
+    bool? notNull = column.NotNull;
+    if (notNull == null)
+      notNull = !prop.Nullable;
+
+    string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+    string _namespace = !String.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : defaultNamespace;
+
+    int? length = column.Length;
+    if (length == null && prop.Type is EntityDataType && (((EntityDataType)prop.Type) == EntityDataType.Binary || ((EntityDataType)prop.Type) == EntityDataType.VarBinary || ((EntityDataType)prop.Type) == EntityDataType.String || ((EntityDataType)prop.Type) == EntityDataType.StringFixedLength || ((EntityDataType)prop.Type) == EntityDataType.AnsiString || ((EntityDataType)prop.Type) == EntityDataType.AnsiStringFixedLength))
+      length = model.DefaultLength;
+
+    int? precision = column.Precision;
+    if (precision == null && prop.Type is EntityDataType && ((EntityDataType)prop.Type) == EntityDataType.Decimal)
+      precision = model.DefaultPrecision;
+
+    int? scale = column.Scale;
+    if (scale == null && prop.Type is EntityDataType && ((EntityDataType)prop.Type) == EntityDataType.Decimal)
+      scale = model.DefaultScale;
+
+    if (prop.Shadow) {
+      #>Property<<#= GetPropertyTypeName(prop, _namespace, defaultNamespace) #>>(@"<#= prop.Name #>")<#+
+    }
+    else {
+      #>Property(x => x.<#= codeProvider.GetValidIdentifier(prop.Name) #>)<#+
+    }
+
+    if (!string.IsNullOrEmpty(columnName)) {
+      #>.HasColumnName(@"<#= codeProvider.GetQuotedString(columnName) #>")<#+
+    }
+
+    if (!string.IsNullOrEmpty(column.SqlType) || 
+        prop.Type is EntityDataType && ((EntityDataType)prop.Type) == EntityDataType.Decimal && precision.HasValue) {
+      string sqlType = GetServerType(model.Connection.ProviderName, column.SqlType, prop.Type, length.HasValue ? length.Value : -1, precision.HasValue ? precision.Value : -1, scale.HasValue ? scale.Value : -1);
+      if (!string.IsNullOrEmpty(sqlType)) {
+        #>.HasColumnType(@"<#= sqlType #>")<#+
+      }
+    }
+
+    if (notNull.Value) {
+      #>.IsRequired()<#+
+    }
+
+    if (prop.Concurrency) {
+      #>.IsConcurrencyToken()<#+
+    }
+
+    if (prop.ValueGenerated == EntityValueGenerated.Never) {
+      #>.ValueGeneratedNever()<#+
+    }
+    else if (prop.ValueGenerated == EntityValueGenerated.OnAdd) {
+      #>.ValueGeneratedOnAdd()<#+
+    }
+    else if (prop.ValueGenerated == EntityValueGenerated.OnAddOrUpdate) {
+      #>.ValueGeneratedOnAddOrUpdate()<#+
+    }
+
+    if (length.HasValue && length.Value > 0) {
+      #>.HasMaxLength(<#= length.ToString() #>)<#+
+    }
+
+    if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
+      if (precision.HasValue && precision.Value > 0) {
+        if (scale.HasValue && scale.Value >= 0) {
+          #>.HasPrecision(<#= precision.ToString() #>, <#= scale.ToString() #>)<#+
+        }
+        else {
+          #>.HasPrecision(<#= precision.ToString() #>)<#+
+        }
+      }
+    }
+
+    if (!string.IsNullOrEmpty(column.Default)) {
+      #>.HasDefaultValueSql(@"<#= ModelUtils.GetQuotedString(column.Default) #>")<#+
+    }#>
+<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateComponentPropertyMap(EntityProperty property, PropertyMappingKey key)
+  // Generate mapping for complex type properties.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateComponentPropertyMap(string prefix, EntityProperty property, PropertyMappingKey key, ServerInfoBase serverInfo) {
+
+    EntityComplexType complexType = (EntityComplexType)property.Type;
+    key = new PropertyMappingKey(key.PropertyPath, property);
+    prefix += string.Format("OwnsOne(t => t.{0}).", codeProvider.GetValidIdentifier(property.Name));
+
+    // generate property mapping
+    foreach (EntityProperty p in complexType.Properties) {
+      if (!((bool)p.GetProperty("DoNotGenerateMapping"))) {
+        if (!p.IsComplexType) { #>
+            <#= prefix #><#+ GeneratePropertyMap(p, key, serverInfo); #>;
+<#+
+        }
+        else {
+          GenerateComponentPropertyMap(prefix, p, key, serverInfo); #>
+<#+
+        }
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateCollectionRelationPropertyMapping
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateCollectionRelationPropertyMapping(EntityRelationProperty relationProperty, ServerInfoBase serverInfo) {
+
+    EntityRelationProperty oppositeRelationProperty = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+    EntityAssociation association = (EntityAssociation)relationProperty.Association;
+
+    #>HasMany(x => x.<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>)<#+
+
+    #>.WithOne(<#+
+    if (oppositeRelationProperty.Generate) {
+      #>op => op.<#= codeProvider.GetValidIdentifier(oppositeRelationProperty.Name) #><#+
+    }
+    #>)<#+
+
+    if (association.OnDelete != EntityDeleteBehavior.NoAction) {
+      #>.OnDelete(DeleteBehavior.<#= association.OnDelete.ToString() #>)<#+
+    }
+
+    bool isRequired = relationProperty.Properties.All(p => !p.Nullable);
+    if (isRequired && relationProperty.Multiplicity != Multiplicity.Many && oppositeRelationProperty.Multiplicity != Multiplicity.Many)
+      isRequired = !relationProperty.Constrained;
+
+    if (model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version3) {
+      if (isRequired) {
+        #>.IsRequired(true)<#+
+      }
+      else {
+        #>.IsRequired(false)<#+
+      }
+    }
+
+    if (oppositeRelationProperty.Properties.Any(p => !p.PrimaryKey)) {
+      string ukFields = string.Join(", ", oppositeRelationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+      #>.HasPrincipalKey(<#= ukFields #>)<#+
+    }
+
+    string fkFields = string.Join(", ", relationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+    #>.HasForeignKey(<#= fkFields #>)<#+
+
+    if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
+      if (isRequired) {
+        #>.IsRequired(true)<#+
+      }
+      else {
+        #>.IsRequired(false)<#+
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateManyToManyRelationPropertyMapping
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateManyToManyRelationPropertyMapping(EntityRelationProperty relationProperty, ServerInfoBase serverInfo) {
+
+    EntityRelationProperty oppositeRelationProperty = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+    EntityAssociation association = (EntityAssociation)relationProperty.Association;
+
+    #>HasMany(x => x.<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>)<#+
+
+    #>.WithMany(op => op.<#= codeProvider.GetValidIdentifier(oppositeRelationProperty.Name) #>)<#+
+
+    if (!string.IsNullOrEmpty(association.JoinTable)) {
+#>
+
+                .UsingEntity<Dictionary<string, object>>(
+                    @"<#= codeProvider.GetQuotedString(association.JoinTable) #>",
+                    x => x.<#+
+      GenerateHasOneForManyToManyRelationPropertyMapping(relationProperty);
+#>,
+                    x => x.<#+
+      GenerateHasOneForManyToManyRelationPropertyMapping(oppositeRelationProperty);
+#>
+
+                )
+                .ToTable(@"<#= codeProvider.GetQuotedString(association.JoinTable) #>"<#+ if (!string.IsNullOrEmpty(association.JoinTableSchema)) { #>, @"<#= codeProvider.GetQuotedString(association.JoinTableSchema) #>"<#+ } #>)<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateHasOneForManyToManyRelationPropertyMapping
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateHasOneForManyToManyRelationPropertyMapping(EntityRelationProperty relationProperty) {
+
+    string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+    string _namespace = !String.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : defaultNamespace;
+
+    #>HasOne<<#= GetCodeElementReference(relationProperty.RelationClass, _namespace) #>>()<#+
+
+    #>.WithMany()<#+
+
+    string ukFields = string.Join(", ", relationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+    #>.HasPrincipalKey(<#= ukFields #>)<#+
+
+    string[] fkFieldNames = relationProperty.Properties
+      .Select(p => {
+        string name = ((EntityProperty)p).GetColumn(new PropertyMappingKey(new object[] { relationProperty })).Name;
+        if (!string.IsNullOrEmpty(name))
+          return "@\"" + name + "\"";
+        else
+          return "@\"" + p.Name + "\"";
+      })
+      .ToArray();
+    string fkFields = string.Join(", ", fkFieldNames);
+    #>.HasForeignKey(<#= fkFields #>)<#+
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateUniqueKey()
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateUniqueKey(string prefix, IGrouping<string, EntityProperty> uniqueKeys) {
+
+    if (string.IsNullOrEmpty(uniqueKeys.Key)) {
+      foreach (EntityProperty uk in uniqueKeys) {
+#>
+            <#= prefix #>HasIndex(@"<#= uk.Name #>").IsUnique(true);
+<#+
+      }
+    }
+    else {
+      string ukFields = string.Join(", ", uniqueKeys.Select(p => "@\"" + p.Name + "\"").ToArray());
+      if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
+        #>
+            <#= prefix #>HasIndex(<#= ukFields #>).IsUnique(true).HasDatabaseName(@"<#= codeProvider.GetQuotedString(uniqueKeys.Key) #>");
+<#+
+      }
+      else {
+        #>
+            <#= prefix #>HasIndex(<#= ukFields #>).IsUnique(true).HasName(@"<#= codeProvider.GetQuotedString(uniqueKeys.Key) #>");
+<#+
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateUniqueKeyForComplexType()
+  // Generate mapping for complex type properties.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateUniqueKeyForComplexType(string prefix, EntityProperty property) {
+
+    EntityComplexType complexType = (EntityComplexType)property.Type;
+    prefix += string.Format("OwnsOne(t => t.{0}).", codeProvider.GetValidIdentifier(property.Name));
+    var nullList = new List<string>() { null };
+
+    foreach (var uniqueKeys in complexType.Properties
+                                  .OfType<EntityProperty>()
+                                  .Where(p => !p.IsComplexType && (p.Column.Unique || (p.Column.UniqueKeys != null && p.Column.UniqueKeys.Count > 0)))
+                                  .SelectMany(p => p.Column.UniqueKeys ?? nullList, (p, uk) => new { p, uk })
+                                  .GroupBy(g => g.uk, g => g.p))
+      GenerateUniqueKey(prefix, uniqueKeys);
+
+    foreach (EntityProperty prop in complexType.Properties.OfType<EntityProperty>().Where(p => p.IsComplexType))
+      GenerateUniqueKeyForComplexType(prefix, prop);
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateHasOneRelationPropertyMapping
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateHasOneRelationPropertyMapping(EntityRelationProperty relationProperty) {
+
+    EntityRelationProperty oppositeRelationProperty = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+    EntityAssociation association = (EntityAssociation)relationProperty.Association;
+
+    #>HasOne(x => x.<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>)<#+
+
+    if (oppositeRelationProperty.Multiplicity == Multiplicity.Many) {
+      #>.WithMany<#+
+    } else {
+      #>.WithOne<#+
+    }
+    #>(<#+
+    if (oppositeRelationProperty.Generate) {
+      #>op => op.<#= codeProvider.GetValidIdentifier(oppositeRelationProperty.Name) #><#+
+    }
+    #>)<#+
+
+    if (association.OnDelete != EntityDeleteBehavior.NoAction) {
+      #>.OnDelete(DeleteBehavior.<#= association.OnDelete.ToString() #>)<#+
+    }
+
+    bool isRequired = oppositeRelationProperty.Properties.All(p => !p.Nullable);
+    if (isRequired && relationProperty.Multiplicity != Multiplicity.Many && oppositeRelationProperty.Multiplicity != Multiplicity.Many)
+      isRequired = !oppositeRelationProperty.Constrained;
+
+    if (model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version3) {
+      if (isRequired) {
+        #>.IsRequired(true)<#+
+      }
+      else {
+        #>.IsRequired(false)<#+
+      }
+    }
+
+    if (oppositeRelationProperty.Multiplicity == Multiplicity.Many) {
+      if (relationProperty.Properties.Any(p => !p.PrimaryKey)) {
+        string ukFields = string.Join(", ", relationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+        #>.HasPrincipalKey(<#= ukFields #>)<#+
+      }
+      string fkFields = string.Join(", ", oppositeRelationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+      #>.HasForeignKey(<#= fkFields #>)<#+
+    }
+    else {
+      RelationProperty constrainedRelationProperty = relationProperty.Constrained ? relationProperty : oppositeRelationProperty;
+      string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+      string _namespace = !String.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : defaultNamespace;
+      if (constrainedRelationProperty.Properties.Any(p => !p.PrimaryKey)) {
+        string ukFields = string.Join(", ", constrainedRelationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+        #>.HasPrincipalKey(typeof(<#= GetCodeElementReference(constrainedRelationProperty.RelationClass, _namespace) #>), <#= ukFields #>)<#+
+      }
+      string fkFields = string.Join(", ", constrainedRelationProperty.OppositeRelationProperty.Properties.Select(p => "@\"" + p.Name + "\"").ToArray());
+      #>.HasForeignKey(typeof(<#= GetCodeElementReference(constrainedRelationProperty.ParentClass, _namespace) #>), <#= fkFields #>)<#+
+    }
+
+    if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
+      if (isRequired) {
+        #>.IsRequired(true)<#+
+      }
+      else {
+        #>.IsRequired(false)<#+
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateSerializationAttributes()
+  // Serialization attributes generation for class.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateSerializationAttributes(BaseClass cls) {
+
+    if ((SerializationLibrary == SerializationLibrary.DataContract && !((bool)cls.GetProperty("DoNotSerialize"))) ||
+        (GenerateDataContracts && !((bool)cls.GetProperty("DoNotGenerateDataContractAttribute")))) {
+#>
+    [DataContract(IsReference=true)]
+<#+
+    }
+
+    if (GenerateSerializableAttributes && !((bool)cls.GetProperty("DoNotGenerateSerializableAttribute"))) {
+#>
+    [Serializable()]
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateSerializationAttributes()
+  // Serialization attributes generation for enum.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateSerializationAttributes(EntityEnumType enumType) {
+
+    if ((SerializationLibrary == SerializationLibrary.DataContract && !((bool)enumType.GetProperty("DoNotSerialize"))) ||
+        (GenerateDataContracts && !((bool)enumType.GetProperty("DoNotGenerateDataContractAttribute")))) {
+#>
+    [DataContract]
+<#+
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateSerializationAttributes
+  // Serialization attributes generation for property.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateSerializationAttributes(EntityProperty property, ServerInfoBase serverInfo) {
+
+    if (SerializationLibrary != SerializationLibrary.None) {
+      bool doNotSerialize = (bool)property.GetProperty("DoNotSerialize");
+      if (doNotSerialize) {
+        if (SerializationLibrary == SerializationLibrary.NewtonsoftJson || SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+        [JsonIgnore]
+<#+
+        }
+        else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
+#>
+        [YamlIgnore]
+<#+
+        }
+      }
+      else {
+        bool propertyAttributeStarted = false;
+        bool withoutArguments = false;
+
+        if (SerializationLibrary == SerializationLibrary.DataContract) {
+          propertyAttributeStarted = true;
+          withoutArguments = true;
+#>
+        [DataMember<#+
+        }
+
+        string serializationName = (string)property.GetProperty("SerializationName");
+
+        if (string.IsNullOrEmpty(serializationName) && SerializeOriginalColumnNames) {
+          PropertyMappingKey key = new PropertyMappingKey(null);
+          EntityColumn column = property.GetColumn(key);
+          if (column != null) {
+            string columnName = column.GetUsedName(key);
+            if (serverInfo != null)
+             columnName = serverInfo.UnQuoteName(columnName);
+            if (!string.IsNullOrEmpty(columnName) && columnName != property.Name)
+              serializationName = columnName;
+          }
+        }
+
+        if (!string.IsNullOrEmpty(serializationName)) {
+          if (SerializationLibrary == SerializationLibrary.DataContract) {
+            withoutArguments = false;
+            if (propertyAttributeStarted) {
+              #>(<#+
+            }
+            else {
+#>
+        [DataMember(<#+
+              propertyAttributeStarted = true;
+            }
+            #>Name = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
+          }
+          else if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
+            propertyAttributeStarted = true;
+#>
+        [JsonProperty(@"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
+          }
+          else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+        [JsonPropertyName(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
+<#+
+          }
+          else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
+            propertyAttributeStarted = true;
+#>
+        [YamlMember(Alias = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
+          }
+        }
+
+        if (!SerializeNullValues) {
+          if (property.Nullable) {
+            if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
+              if (propertyAttributeStarted) {
+                #>, <#+
+              }
+              else {
+#>
+        [JsonProperty(<#+
+                propertyAttributeStarted = true;
+              }
+              #>NullValueHandling = NullValueHandling.Ignore<#+
+            }
+            else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+<#+
+            }
+            else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
+              if (propertyAttributeStarted) {
+                #>, <#+
+              }
+              else {
+#>
+        [YamlMember(<#+
+                propertyAttributeStarted = true;
+              }
+              #>DefaultValuesHandling = DefaultValuesHandling.OmitNull<#+
+            }
+          }
+        }
+
+        if (propertyAttributeStarted) {
+          if (!withoutArguments) {
+            #>)<#+
+          }
+#>]
+<#+
+        }
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateSerializationAttributes
+  // Serialization attributes generation for relation property.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateSerializationAttributes(EntityRelationProperty relationProperty) {
+
+    if (SerializationLibrary != SerializationLibrary.None) {
+
+      bool doNotSerialize = SerializeNavigationProperties == NavigationPropertySerializationBehavior.None;
+
+      if (!doNotSerialize)
+        doNotSerialize = (bool)relationProperty.GetProperty("DoNotSerialize");
+
+      if (!doNotSerialize) {
+        if ((relationProperty.Multiplicity == Multiplicity.Many && SerializeNavigationProperties == NavigationPropertySerializationBehavior.OneEnd) ||
+            (relationProperty.Multiplicity != Multiplicity.Many && SerializeNavigationProperties == NavigationPropertySerializationBehavior.ManyEnd))
+          doNotSerialize = true;
+      }
+
+      if (doNotSerialize) {
+        if (SerializationLibrary == SerializationLibrary.NewtonsoftJson || SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+        [JsonIgnore]
+<#+
+        }
+        else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
+#>
+        [YamlIgnore]
+<#+
+        }
+      }
+      else {
+        bool propertyAttributeStarted = false;
+        bool withoutArguments = false;
+
+        if (SerializationLibrary == SerializationLibrary.DataContract) {
+          propertyAttributeStarted = true;
+          withoutArguments = true;
+#>
+        [DataMember<#+
+        }
+
+        string serializationName = (string)relationProperty.GetProperty("SerializationName");
+        if (!string.IsNullOrEmpty(serializationName)) {
+          if (SerializationLibrary == SerializationLibrary.DataContract) {
+            withoutArguments = false;
+            if (propertyAttributeStarted) {
+              #>(<#+
+            }
+            else {
+#>
+        [DataMember(<#+
+              propertyAttributeStarted = true;
+            }
+            #>Name = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
+          }
+          else if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
+#>
+        [JsonProperty(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
+<#+
+          }
+          else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
+#>
+        [JsonPropertyName(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
+<#+
+          }
+          else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
+#>
+        [YamlMember(Alias = @"<#= codeProvider.GetQuotedString(serializationName) #>")]
+<#+
+          }
+        }
+
+        if (propertyAttributeStarted) {
+          if (!withoutArguments) {
+            #>)<#+
+          }
+#>]
+<#+
+        }
+      }
+    }
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Utility methods
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  // Method GetCodeElementReference
+  private string GetCodeElementReference(ICodeElement element, string parentNamespace) {
+
+    if (!string.IsNullOrEmpty(element.Namespace) && element.Namespace != parentNamespace)
+      return codeProvider.GetValidIdentifier(element.Namespace) + "." + codeProvider.GetValidIdentifier(element.Name);
+
+    string defaultNamespace = model.GetDefaultNamespace();
+    string nspace = !string.IsNullOrEmpty(element.Namespace) ? element.Namespace : defaultNamespace;
+    if (parentNamespace.Contains("." + element.Name + ".") || parentNamespace.StartsWith(element.Name + ".") || parentNamespace.EndsWith("." + element.Name))
+      return codeProvider.GetValidIdentifier(nspace) + "." + codeProvider.GetValidIdentifier(element.Name);
+
+    return codeProvider.GetValidIdentifier(element.Name);
+  }
+
+  // Method GetRelationPropertyCollectionInitialization
+  private string GetRelationPropertyCollectionInitialization(EntityRelationProperty relationProperty, string parentNamespace, string defaultNamespace) {
+
+    if (relationProperty.IsPropertyExist("CollectionTypeName") && !string.IsNullOrEmpty(relationProperty.GetProperty("CollectionTypeName") as string))
+      return codeProvider.GetNullableType(false, relationProperty.GetProperty("CollectionTypeName")) + "()";
+
+    BaseClass relationClass = relationProperty.RelationClass;
+    string relationClassName = codeProvider.GetValidIdentifier(relationClass.Name);
+    string nspace = !string.IsNullOrEmpty(relationClass.Namespace) ? codeProvider.GetValidIdentifier(relationClass.Namespace) : defaultNamespace;
+    if (nspace != parentNamespace)
+      relationClassName = nspace + "." + relationClassName;
+
+    string collectionName = "List";
+    if (CollectionInitializationType != EFCoreCollectionInitializationType.Default)
+      collectionName = CollectionInitializationType.ToString();
+
+    return string.Format("{0}<{1}>()", collectionName, relationClassName);
+  }
+
+  // Method GetRelationPropertyTypeName
+  private string GetRelationPropertyTypeName(EntityRelationProperty relationProperty, string parentNamespace, string defaultNamespace) {
+
+    BaseClass relationClass = relationProperty.RelationClass;
+    string relationClassName = codeProvider.GetValidIdentifier(relationClass.Name);
+    string nspace = !string.IsNullOrEmpty(relationClass.Namespace) ? codeProvider.GetValidIdentifier(relationClass.Namespace) : defaultNamespace;
+    if (nspace != parentNamespace)
+      relationClassName = nspace + "." + relationClassName;
+
+    if (relationProperty.Multiplicity != Multiplicity.Many)
+      return relationClassName;
+
+    if (relationProperty.IsPropertyExist("CollectionTypeName") && !string.IsNullOrEmpty(relationProperty.GetProperty("CollectionTypeName") as string))
+      return codeProvider.GetNullableType(false, relationProperty.GetProperty("CollectionTypeName"));
+
+    string collectionName = "IList";
+    if (CollectionPropertyType != EFCoreCollectionPropertyType.Default)
+      collectionName = CollectionPropertyType.ToString();
+
+    if (NullableReferenceTypes == ReferenceTypeNullability.Enable && CollectionInitializationType == EFCoreCollectionInitializationType.None)
+      return string.Format("{0}<{1}>?", collectionName, relationClassName);
+    else
+      return string.Format("{0}<{1}>", collectionName, relationClassName);
+  }
+
+  // Method GetPropertyTypeName
+  private string GetPropertyTypeName(EntityProperty property, string parentNamespace, string defaultNamespace) {
+
+    return GetTypeName(property.Type, parentNamespace, defaultNamespace, property.Nullable, true);
+  }
+
+  // Method GetTypeName
+  private string GetTypeName(object type, string parentNamespace, string defaultNamespace, bool nullable) {
+
+    return GetTypeName(type, parentNamespace, defaultNamespace, nullable, false);
+  }
+
+  // Method GetTypeName
+  private string GetTypeName(object type, string parentNamespace, string defaultNamespace, bool nullable, bool isProperty) {
+
+    string dataType = string.Empty;
+    if (type is ICodeElement) {
+      dataType = codeProvider.GetValidIdentifier(((ICodeElement)type).Name);
+      if (!(type is EnumType && ((EnumType)type).IsExternal && string.IsNullOrEmpty(((ICodeElement)type).Namespace))) {
+        string nspace = !string.IsNullOrEmpty(((ICodeElement)type).Namespace) ? ((ICodeElement)type).Namespace : defaultNamespace;
+        if (nspace != parentNamespace)
+          dataType = codeProvider.GetValidIdentifier(nspace) + "." + dataType;
+      }
+      if (type is EnumType && nullable)
+        dataType = codeProvider.FormatNullable(dataType);
+    }
+    else {
+      TypeNameBehavior behavior = TypeNameBehavior.AllowShortName | TypeNameBehavior.OmitSystemNamespace;
+      if (isProperty && NullableReferenceTypes == ReferenceTypeNullability.Enable)
+        behavior |= TypeNameBehavior.NullableReferenceTypes;
+      dataType = codeProvider.GetNullableType(nullable, type, behavior);
+    }
+    return dataType;
+  }
+
+  // Method GetMemberAccessModifiers()
+  private void GetMemberAccessModifiers(MemberAccess propertyGetter, MemberAccess propertySetter, ref string propertyAccess, ref string getAccess, ref string setAccess) {
+
+    if ((int)propertyGetter < (int)propertySetter) {
+      propertyAccess = codeProvider.FormatMemberAccess(propertyGetter);
+      setAccess = codeProvider.FormatMemberAccess(propertySetter) + " ";
+    }
+    else if (propertyGetter == propertySetter) {
+      propertyAccess = codeProvider.FormatMemberAccess(propertyGetter);
+    }
+    else {
+      propertyAccess = codeProvider.FormatMemberAccess(propertySetter);
+      getAccess = codeProvider.FormatMemberAccess(propertyGetter) + " ";
+    }
+  }
+
+  private string GetServerType(string providerName, string serverType, object propertyType, int maxLength, int precision, int scale) {
+
+    if (providerName == ProvidersManager.SqlClientInvariantName || providerName == ProvidersManager.SqlClientCe35InvariantName || providerName == ProvidersManager.SqlClientCe40InvariantName)
+      return GetSqlServerType(serverType, propertyType, maxLength, precision, scale);
+    else if (providerName == ProvidersManager.OracleDPManagedInvariantName || providerName == ProvidersManager.OracleDPInvariantName)
+      return GetOdpNetServerType(serverType, propertyType, maxLength, precision, scale);
+    else if (providerName == ProvidersManager.MySqlConnectorInvariantName)
+      return GetMySqlConnectorServerType(serverType, maxLength, precision, scale);
+    else if (providerName == ProvidersManager.NPgSQLInvariantName)
+      return GetNpgsqlServerType(serverType, propertyType, maxLength, precision, scale);
+    else if (providerName == ProvidersManager.FirebirdInvariantName)
+      return GetFirbirdServerType(serverType, maxLength, precision, scale);
+    else
+      return serverType;
+  }
+
+  private string GetSqlServerType(string serverType, object propertyType, int maxLength, int precision, int scale) {
+
+    if (string.IsNullOrEmpty(serverType) && propertyType is EntityDataType && (EntityDataType)propertyType == EntityDataType.Decimal && precision > 0)
+      serverType = "decimal"; // Jira DIRED-43
+
+    if (string.IsNullOrEmpty(serverType) || serverType.Contains("("))
+      return serverType;
+
+    StringBuilder sbName = new StringBuilder(serverType);
+    switch (serverType.ToLower()) {
+
+      case "decimal":
+      case "numeric":
+        if (scale > 0 && precision > 0) {
+          sbName.Append("(");
+          sbName.Append(precision);
+          sbName.Append(",");
+          sbName.Append(scale);
+          sbName.Append(")");
+        }
+        else if (precision > 0) {
+          sbName.Append("(");
+          sbName.Append(precision);
+          sbName.Append(")");
+        }
+        break;
+
+      case "char":
+      case "nchar":
+        if (maxLength > 0) {
+          sbName.Append("(");
+          sbName.Append(maxLength);
+          sbName.Append(")");
+        }
+        break;
+
+      case "varbinary":
+      case "binary":
+        sbName.Append("(");
+        if (maxLength < 0 || maxLength >= 2147483647)
+          sbName.Append("max");
+        else
+          sbName.Append(maxLength == 0 ? 1 : maxLength);
+        sbName.Append(")");
+        break;
+
+      case "varchar":
+        sbName.Append("(");
+        if (maxLength < 0 || maxLength > 8000)
+          sbName.Append("max");
+        else
+          sbName.Append(maxLength == 0 ? 1 : maxLength);
+        sbName.Append(")");
+        break;
+
+      case "nvarchar":
+        sbName.Append("(");
+        if (maxLength < 0 || maxLength > 4000)
+          sbName.Append("max");
+        else
+          sbName.Append(maxLength == 0 ? 1 : maxLength);
+        sbName.Append(")");
+        break;
+    }
+    return sbName.ToString();
+  }
+
+  private string GetOdpNetServerType(string serverType, object propertyType, int maxLength, int precision, int scale) {
+
+    if (string.IsNullOrEmpty(serverType) || serverType.Contains("("))
+      return serverType;
+
+    if (propertyType is EntityDataType) {
+      EntityDataType edmType = (EntityDataType)propertyType;
+      if (edmType.IsNumeric() || edmType == EntityDataType.Boolean) { // DIRED-8
+        string normalizedServerType = serverType.ToLower();
+        if (normalizedServerType == "number")
+          return null;
+      }
+    }
+
+    return serverType;
+  }
+
+  private string GetMySqlConnectorServerType(string serverType, int maxLength, int precision, int scale) {
+
+    if (string.IsNullOrEmpty(serverType) || serverType.Contains("("))
+      return serverType;
+
+    StringBuilder sbName = new StringBuilder(serverType);
+    switch (serverType.ToLower()) {
+      case "binary":
+      case "char":
+      case "nchar":
+      case "varbinary":
+      case "varchar":
+      case "nvarchar":
+        if (maxLength > 0) {
+          sbName.Append("(");
+          sbName.Append(maxLength);
+          sbName.Append(")");
+        }
+        break;
+    }
+    return sbName.ToString();
+  }
+
+  private string GetNpgsqlServerType(string serverType, object propertyType, int maxLength, int precision, int scale) {
+
+    if (string.IsNullOrEmpty(serverType) || serverType.Contains("("))
+      return serverType;
+
+    if (propertyType is EntityDataType && ((EntityDataType)propertyType) != EntityDataType.DateTimeOffset) { // RM #137762
+      string normalizedServerType = serverType.ToLower();
+      if (normalizedServerType.StartsWith("timetz") || normalizedServerType == "time with time zone")
+        return null;
+    }
+
+    return serverType;
+  }
+
+  private string GetFirbirdServerType(string serverType, int maxLength, int precision, int scale) {
+
+    if (string.IsNullOrEmpty(serverType) || serverType.Contains("("))
+      return serverType;
+
+    StringBuilder sbName = new StringBuilder(serverType);
+    switch (serverType.ToLower()) {
+      case "char":
+      case "character":
+      case "varchar":
+      case "character varying":
+      case "char varying":
+        if (maxLength > 0) {
+          sbName.Append("(");
+          sbName.Append(maxLength);
+          sbName.Append(")");
+        }
+        break;
+    }
+    return sbName.ToString();
+  }
+#>
+<#+
+  //////////////////////////////////////////////////////////////////////////////////
+  //
+  // Method GenerateWellknowIdentifiers()
+  // Class extensibility method definitions generation.
+  //
+  //////////////////////////////////////////////////////////////////////////////////
+  private void GenerateWellknowIdentifiers(BaseClass baseClass, string _namespace)
+  {
+    var cls = baseClass as EntityDeveloper.EntityFrameworkCore.EntityClass;
+    if (cls == null)
+    {
+        return;
+    }
+
+    var wellknownIdentifiers = (string)cls.GetProperty("WellKnowIdentifiers");
+    if (string.IsNullOrEmpty(wellknownIdentifiers) || !cls.AllProperties.Any(p => p.PrimaryKey))
+    {
+        return;
+    }
+
+    var pkProperty = (EntityDeveloper.EntityFrameworkCore.EntityProperty)cls.AllProperties.First(p => p.PrimaryKey);
+    var keyType = GetPropertyTypeName(pkProperty, _namespace, "System");
+#>
+
+        /// <summary>
+        /// Represents well-known identifiers.
+        /// </summary>
+        public static class Ids
+        {
+<#+
+        var ids = wellknownIdentifiers.Split(',').ToDictionary(id => id.Split('=')[0], id => id.Split('=')[1]).OrderBy(id => id.Key);
+        foreach (var id in ids)
+        {
+#>
+            /// <summary>
+            /// Gets the <#= id.Key #> Id.
+            /// </summary>
+            public static <#= keyType #> <#= id.Key #> { get; } = <#= keyType #>.Parse("<#= id.Value #>");
+<#+
+        }
+#>
+        }
+<#+
+  }
+#>
