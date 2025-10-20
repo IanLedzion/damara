@@ -398,7 +398,7 @@ public partial class <#= unitOfWorkName #>Factory
 {
     private string connectionString;
 
-    public VertxRepoUnitOfWorkFactory(string connectionString)
+    public <#= unitOfWorkName #>Factory(string connectionString)
     {
         ArgumentNullException.ThrowIfNullOrWhiteSpace(connectionString);
         this.connectionString = connectionString;
