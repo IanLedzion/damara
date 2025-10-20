@@ -2,8 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 namespace Damara.MSTest;
 
 /// <summary>
