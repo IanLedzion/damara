@@ -8,7 +8,7 @@
 		<AssemblyVersion>5.0.0</AssemblyVersion>
 		<FileVersion>5.0.0</FileVersion>
 		<Company>Ian Ledzion</Company>
-		<Copyright>Copyright © Vertx-IQ AG 2025</Copyright>
+        <Copyright>Copyright © Ian Ledzion 2015-2024</Copyright>
 		<AssemblyName>Damara</AssemblyName>
 		<RootNamespace>Damara</RootNamespace>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
