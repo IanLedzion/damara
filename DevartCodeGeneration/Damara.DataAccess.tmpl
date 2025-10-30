@@ -90,7 +90,7 @@ public partial interface I<#= unitOfWorkName #>
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(true);
+    GenerateFileHeader(false);
 #>
 using System;
 <#+
@@ -124,8 +124,10 @@ public partial interface I<#= unitOfWorkName #> : Damara.IUnitOfWork, IDisposabl
     foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateRepository")).OrderBy(c => c.Name))
     {
       string repositoryInterfaceName = "I" + cls.Name + "Repository";
+      var aggregateRoot = (bool)cls.GetProperty("AggregateRoot");
+      var repositoryClassAccessModifier = aggregateRoot ? "public" : "internal";
         #>
-    <#= repositoryInterfaceName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>Repository { get; }
+    <#= repositoryClassAccessModifier #> <#= repositoryInterfaceName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>Repository { get; }
 <#+
     }
 #>
@@ -135,8 +137,10 @@ public partial interface I<#= unitOfWorkName #> : Damara.IUnitOfWork, IDisposabl
     foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateFactory")).OrderBy(c => c.Name))
     {
       string factoryName = cls.Name + "Factory";
+      var aggregateRoot = (bool)cls.GetProperty("AggregateRoot");
+      var factoryClassAccessModifier = aggregateRoot ? "public" : "internal";
         #>
-    <#= factoryName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>Factory { get; }
+    <#= factoryClassAccessModifier #> <#= factoryName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>Factory { get; }
 <#+
     }
 #>
@@ -177,7 +181,7 @@ public partial interface I<#= unitOfWorkName #>Factory
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(true);
+    GenerateFileHeader(false);
 #>
 namespace <#= _namespace #>;
 
@@ -210,7 +214,7 @@ public partial class <#= unitOfWorkName #> : I<#= unitOfWorkName #>
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(true);
+    GenerateFileHeader(false);
     string contextClassName = codeProvider.GetValidIdentifier(model.Name);
     string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
     if (!string.Equals(_namespace, contextNamespace))
@@ -252,7 +256,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
         string repositoryInterfaceName = "I" + cls.Name + "Repository";
         string repositoryFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "Repository");
 #>
-    <#= repositoryInterfaceName #> <#= repositoryFieldName #>;
+    private <#= repositoryInterfaceName #> <#= repositoryFieldName #>;
 <#+
     }
 #>
@@ -264,7 +268,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
         string factoryName = cls.Name + "Factory";
         string factoryFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "Factory");
 #>
-    <#= factoryName #> <#= factoryFieldName #>;
+    private <#= factoryName #> <#= factoryFieldName #>;
 <#+
     }
 #>
@@ -276,7 +280,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
         string domainServiceName = cls.Name + "DomainService";
         string domainServiceFieldName = FirstCharToLowerCase(codeProvider.GetValidIdentifier(cls.Name) + "DomainService");
 #>
-    <#= domainServiceName #> <#= domainServiceFieldName #>;
+    private <#= domainServiceName #> <#= domainServiceFieldName #>;
 <#+
     }
 #>
@@ -302,7 +306,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
       string repositoryPropertyName = codeProvider.GetValidIdentifier(cls.Name) + "Repository";
 #>
 
-    public <#= repositoryInterfaceName #> <#= repositoryPropertyName #>
+    <#= repositoryInterfaceName #> I<#= unitOfWorkName #>.<#= repositoryPropertyName #>
     {
         get
         {
@@ -323,7 +327,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
       string factoryPropertyName = codeProvider.GetValidIdentifier(cls.Name) + "Factory";
 #>
 
-    public <#= factoryClassName #> <#= factoryPropertyName #>
+    <#= factoryClassName #> I<#= unitOfWorkName #>.<#= factoryPropertyName #>
     {
         get
         {
@@ -344,7 +348,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
       string domainServicePropertyName = codeProvider.GetValidIdentifier(cls.Name) + "DomainService";
 #>
 
-    public <#= domainServiceClassName #> <#= domainServicePropertyName #>
+    <#= domainServiceClassName #> I<#= unitOfWorkName #>.<#= domainServicePropertyName #>
     {
         get
         {
@@ -384,7 +388,7 @@ public partial class <#= unitOfWorkName #>Factory : I<#= unitOfWorkName #>Factor
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(true);
+    GenerateFileHeader(false);
     string contextClassName = codeProvider.GetValidIdentifier(model.Name);
     string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
     if (!string.Equals(_namespace, contextNamespace))
@@ -428,6 +432,9 @@ public partial class <#= unitOfWorkName #>Factory
       string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
       if (!string.Equals(_namespace, classNamespace))
         fullClassName = classNamespace + "." + fullClassName;
+        
+      var aggregateRoot = (bool)cls.GetProperty("AggregateRoot");
+      var repositoryClassAccessModifier = aggregateRoot ? "public" : "internal";
 
         output.PushOutputRedirection(RepositoryOutput, "", rootFileName, OverwriteMode.None);
 #>
@@ -436,7 +443,7 @@ namespace <#= _namespace #>;
 /// <summary>
 /// Provides the contract for the <see cref="<#= cls.Name #>" /> repository.
 /// </summary>
-public partial interface I<#= cls.Name #>Repository
+<#= repositoryClassAccessModifier #> partial interface I<#= cls.Name #>Repository
 {
 }
 <#+
@@ -449,7 +456,8 @@ using System;
 using System.Collections.Generic;
 
 namespace <#= _namespace #>;
-public partial interface I<#= cls.Name #>Repository : IRepository<<#= fullClassName #>>
+
+<#= repositoryClassAccessModifier #> partial interface I<#= cls.Name #>Repository : IRepository<<#= fullClassName #>>
 {
 <#+
        var wellKnownIdentifiers = (string)cls.GetProperty("WellKnowIdentifiers");
@@ -503,6 +511,9 @@ public partial interface I<#= cls.Name #>Repository : IRepository<<#= fullClassN
       string classNamespace = !String.IsNullOrEmpty(cls.Namespace) ? codeProvider.GetValidIdentifier(cls.Namespace) : defaultModelNamespace;
       if (!string.Equals(_namespace, classNamespace))
         fullClassName = classNamespace + "." + fullClassName;
+        
+      var aggregateRoot = (bool)cls.GetProperty("AggregateRoot");
+      var repositoryClassAccessModifier = aggregateRoot ? "public" : "internal";
 
         output.PushOutputRedirection(RepositoryOutput, "", rootFileName, OverwriteMode.None);
 #>
@@ -511,19 +522,19 @@ namespace <#= _namespace #>;
 /// <summary>
 /// Provides a repository for the <see cref="<#= cls.Name #>" /> class.
 /// </summary>
-public partial class <#= cls.Name #>Repository : I<#= cls.Name #>Repository
+<#= repositoryClassAccessModifier #> partial class <#= cls.Name #>Repository : I<#= cls.Name #>Repository
 {
 }
 <#+
         output.PopOutputRedirection();
 
         output.PushOutputRedirection(RepositoryOutput, rootFileName, rootFileName + ".Generated");
-        GenerateFileHeader(true);
+        GenerateFileHeader(false);
 #>
 
 namespace <#= _namespace #>;
 
-public partial class <#= cls.Name #>Repository : Damara.EntityFramework.EntityFrameworkRepository<<#= contextClassName #>, <#= unitOfWorkName #>, <#= fullClassName #>>
+<#= repositoryClassAccessModifier #> partial class <#= cls.Name #>Repository : Damara.EntityFramework.EntityFrameworkRepository<<#= contextClassName #>, <#= unitOfWorkName #>, <#= fullClassName #>>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="<#= cls.Name #>Repository"/> class.
@@ -592,8 +603,10 @@ public partial class <#= cls.Name #>Repository : Damara.EntityFramework.EntityFr
         fullClassName = classNamespace + "." + fullClassName;
 
       var privateFactoryMethod = (bool)cls.GetProperty("PrivateDefaultCreateMethod");
+      var aggregateRoot = (bool)cls.GetProperty("AggregateRoot");
+      var factoryClassAccessModifier = aggregateRoot ? "public" : "internal";
       var factoryMethodAccessModifier = privateFactoryMethod ? "private" : "public";
-
+      
       var createParameters = new List<string>();
       var setStatements = new List<string>();
 
@@ -654,19 +667,19 @@ namespace <#= _namespace #>;
 /// <summary>
 /// Provides methods for creating instances of the <see cref="<#= cls.Name #>" /> class.
 /// </summary>
-public partial class <#= cls.Name #>Factory
+<#= factoryClassAccessModifier #> partial class <#= cls.Name #>Factory
 {
 }
 <#+
       output.PopOutputRedirection();
 
       output.PushOutputRedirection(FactoryOutput, rootFileName, rootFileName + ".Generated");
-      GenerateFileHeader(true);
+      GenerateFileHeader(false);
 #>
 
 namespace <#= _namespace #>;
 
-public partial class <#= cls.Name #>Factory : Damara.FactoryBase<I<#= unitOfWorkName #>, <#= fullClassName #>>
+<#= factoryClassAccessModifier #> partial class <#= cls.Name #>Factory : Damara.FactoryBase<I<#= unitOfWorkName #>, <#= fullClassName #>>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="<#= cls.Name #>Factory"/> class.
@@ -746,7 +759,7 @@ public partial class <#= cls.Name #>DomainService
       output.PopOutputRedirection();
 
       output.PushOutputRedirection(DomainServiceOutput, rootFileName, rootFileName + ".Generated");
-      GenerateFileHeader(true);
+      GenerateFileHeader(false);
 #>
 
 namespace <#= _namespace #>;
@@ -840,7 +853,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
       output.PopOutputRedirection();
 
       output.PushOutputRedirection(ValidationOutput, rootFileName, rootFileName + ".Generated");
-      GenerateFileHeader(true);
+      GenerateFileHeader(false);
 #>
 using <#= defaultModelNamespace #>;
 using <#= unitOfWorkNamespace #>;
