@@ -90,7 +90,7 @@ public partial interface I<#= unitOfWorkName #>
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(false);
+    GenerateFileHeader(true);
 #>
 using System;
 <#+
@@ -181,7 +181,7 @@ public partial interface I<#= unitOfWorkName #>Factory
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(false);
+    GenerateFileHeader(true);
 #>
 namespace <#= _namespace #>;
 
@@ -214,7 +214,7 @@ public partial class <#= unitOfWorkName #> : I<#= unitOfWorkName #>
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(false);
+    GenerateFileHeader(true);
     string contextClassName = codeProvider.GetValidIdentifier(model.Name);
     string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
     if (!string.Equals(_namespace, contextNamespace))
@@ -310,7 +310,7 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
     {
         get
         {
-            this.<#= repositoryFieldName #> ??= new <#= repositoryClassName #>(this);
+            this.<#= repositoryFieldName #> ??= new <#= repositoryClassName #>(this.Context, this);
             return this.<#= repositoryFieldName #>;
         }
     }
@@ -388,7 +388,7 @@ public partial class <#= unitOfWorkName #>Factory : I<#= unitOfWorkName #>Factor
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(DataAccessLayerOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(false);
+    GenerateFileHeader(true);
     string contextClassName = codeProvider.GetValidIdentifier(model.Name);
     string contextNamespace = !string.IsNullOrEmpty(model.ContextNamespace) ? codeProvider.GetValidIdentifier(model.ContextNamespace) : codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
     if (!string.Equals(_namespace, contextNamespace))
@@ -450,7 +450,7 @@ namespace <#= _namespace #>;
     output.PopOutputRedirection();
 
     output.PushOutputRedirection(RepositoryOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(false);
+    GenerateFileHeader(true);
 #>
 using System;
 using System.Collections.Generic;
@@ -480,9 +480,13 @@ namespace <#= _namespace #>;
         List<string> lst = new List<string>();
         foreach (EntityProperty prop in cls.AllProperties.Where(p => p.PrimaryKey)) {
           string propertyDataType = GetPropertyType(prop, _namespace);
-          lst.Add(string.Format("{0} _{1}", propertyDataType, prop.Name));
+          lst.Add(string.Format("{0} {1}", propertyDataType, FirstCharToLowerCase(prop.Name)));
         }
 #>
+    /// <summary>
+    /// Gets a <#= cls.Name #> by identifier.
+    /// </summary>
+    /// <returns>A <#= cls.Name #>, or null if none was found.</returns>
     <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>);
 <#+
     }
@@ -529,19 +533,20 @@ namespace <#= _namespace #>;
         output.PopOutputRedirection();
 
         output.PushOutputRedirection(RepositoryOutput, rootFileName, rootFileName + ".Generated");
-        GenerateFileHeader(false);
+        GenerateFileHeader(true);
 #>
 
 namespace <#= _namespace #>;
 
-<#= repositoryClassAccessModifier #> partial class <#= cls.Name #>Repository : Damara.EntityFramework.EntityFrameworkRepository<<#= contextClassName #>, <#= unitOfWorkName #>, <#= fullClassName #>>
+<#= repositoryClassAccessModifier #> partial class <#= cls.Name #>Repository : Damara.EntityFramework.EntityFrameworkRepository<<#= contextClassName #>, I<#= unitOfWorkName #>, <#= unitOfWorkName #>, <#= fullClassName #>>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="<#= cls.Name #>Repository"/> class.
     /// </summary>
+    /// <param name="context">The context.</param>
     /// <param name="unitOfWork">The unit of work.</param>
-    internal <#= cls.Name #>Repository(<#= unitOfWorkName #> unitOfWork)
-        : base(unitOfWork)
+    internal <#= cls.Name #>Repository(<#= contextClassName #> context, <#= unitOfWorkName #> unitOfWork)
+        : base(context, unitOfWork)
     {
     }
 
@@ -575,9 +580,9 @@ namespace <#= _namespace #>;
               condition.Add(string.Format("e.{0} == {1}", prop.Name, FirstCharToLowerCase(prop.Name)));
 #>
     /// <summary>
-    /// Gets the entity by identifier.
+    /// Gets a <#= cls.Name #> by identifier.
     /// </summary>
-    /// <returns>The entity, or null if none was found</returns>
+    /// <returns>A <#= cls.Name #>, or null if none was found.</returns>
     public virtual <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>) => this.ObjectSet.SingleOrDefault(e => <#= codeProvider.Join(" && ", condition.ToArray()) #>);
 <#+
       }
@@ -674,7 +679,7 @@ namespace <#= _namespace #>;
       output.PopOutputRedirection();
 
       output.PushOutputRedirection(FactoryOutput, rootFileName, rootFileName + ".Generated");
-      GenerateFileHeader(false);
+      GenerateFileHeader(true);
 #>
 
 namespace <#= _namespace #>;
@@ -759,7 +764,7 @@ public partial class <#= cls.Name #>DomainService
       output.PopOutputRedirection();
 
       output.PushOutputRedirection(DomainServiceOutput, rootFileName, rootFileName + ".Generated");
-      GenerateFileHeader(false);
+      GenerateFileHeader(true);
 #>
 
 namespace <#= _namespace #>;
@@ -853,7 +858,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
       output.PopOutputRedirection();
 
       output.PushOutputRedirection(ValidationOutput, rootFileName, rootFileName + ".Generated");
-      GenerateFileHeader(false);
+      GenerateFileHeader(true);
 #>
 using <#= defaultModelNamespace #>;
 using <#= unitOfWorkNamespace #>;

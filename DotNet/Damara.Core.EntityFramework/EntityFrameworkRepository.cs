@@ -10,22 +10,31 @@ namespace Damara.EntityFramework;
 /// Provides a concrete repository implementation for EntityFramework database contexts.
 /// </summary>
 /// <typeparam name="TDbContext">The type of the database context.</typeparam>
+/// <typeparam name="TIUnitOfWork">The unit of work contract.</typeparam>
 /// <typeparam name="TUnitOfWork">The type of the unit of work.</typeparam>
 /// <typeparam name="TEntity">The entity type managed by the repository.</typeparam>
-public abstract class EntityFrameworkRepository<TDbContext, TUnitOfWork, TEntity> : RepositoryBase<TUnitOfWork, TEntity>
+/// <seealso cref="Damara.RepositoryBase&lt;TIUnitOfWork, TEntity&gt;" />
+public abstract class EntityFrameworkRepository<TDbContext, TIUnitOfWork, TUnitOfWork, TEntity> : RepositoryBase<TIUnitOfWork, TEntity>
     where TDbContext : DbContext
+    where TIUnitOfWork : IUnitOfWork
     where TUnitOfWork : EntityFrameworkUnitOfWork<TDbContext>
     where TEntity : EntityBase
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="EntityFrameworkRepository{TEntity, TDbContext, TUnitOfWork}"/> class.
+    /// Initializes a new instance of the <see cref="EntityFrameworkRepository{TDbContext, TIUnitOfWork, TUnitOfWork, TEntity}"/> class.
     /// </summary>
     /// <param name="unitOfWork">The unit of work.</param>
-    protected EntityFrameworkRepository(TUnitOfWork unitOfWork)
+    protected EntityFrameworkRepository(TDbContext context, TIUnitOfWork unitOfWork)
         : base(unitOfWork)
     {
-        this.ObjectSet = this.UnitOfWork.Context.Set<TEntity>();
+        this.Context = context;
+        this.ObjectSet = this.Context.Set<TEntity>();
     }
+
+    /// <summary>
+    /// Gets the context.
+    /// </summary>
+    protected TDbContext Context { get; }
 
     /// <summary>
     /// Gets the object set.
