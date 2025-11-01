@@ -648,9 +648,15 @@ namespace <#= _namespace #>;
   
           foreach (EntityRelationProperty relationProperty in baseClass.RelationProperties.Where(prop => prop.Generate && (prop.Multiplicity == Multiplicity.ZeroOrOne || prop.Multiplicity == Multiplicity.One) && (bool)prop.GetProperty("GenerateFactoryParameter")))
           {
+              var defaultValue = (string)relationProperty.GetProperty("DefaultValue");
+              if(string.IsNullOrEmpty(defaultValue))
+              {
+                  defaultValue = "default";
+              }              
+              
               var typeName = GetRelationPropertyTypeName(relationProperty, _namespace, defaultModelNamespace);
               createParameters.Add(typeName + " " + FirstCharToLowerCase(relationProperty.Name));
-              setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : default", relationProperty.Name, FirstCharToLowerCase(relationProperty.Name)));
+              setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : {2}", relationProperty.Name, FirstCharToLowerCase(relationProperty.Name), defaultValue));
           }
   
           foreach (EntityRelationProperty relationProperty in baseClass.RelationProperties.Where(prop => prop.Generate && (prop.Multiplicity == Multiplicity.ZeroOrOne || prop.Multiplicity == Multiplicity.One) && !(bool)prop.GetProperty("GenerateFactoryParameter")))
