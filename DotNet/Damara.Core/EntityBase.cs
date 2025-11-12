@@ -9,18 +9,4 @@ namespace Damara;
 /// </summary>
 public abstract class EntityBase
 {
-    private static long createSequence;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="EntityBase"/> class.
-    /// </summary>
-    protected EntityBase()
-    {
-        this.CreateSequence = createSequence++;
-    }
-
-    /// <summary>
-    /// Gets the create sequence.
-    /// </summary>
-    public long CreateSequence { get; }
 }
