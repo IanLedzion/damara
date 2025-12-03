@@ -14,14 +14,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-        <PackageReference Include="Devart.Data" Version="6.0.235" />
-        <PackageReference Include="Devart.Data.Linq" Version="5.2.235" />
-        <PackageReference Include="Devart.Data.SqlServer.Linq" Version="5.2.235" />
-        <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.5" />
-		<PackageReference Include="FluentValidation" Version="12.0.0" />
-		<PackageReference Include="MSTest.TestFramework" Version="3.9.1" />
-		<PackageReference Include="MSTest.TestAdapter" Version="3.9.1" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+        <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.11" />
+		<PackageReference Include="FluentValidation" Version="12.1.0" />
+		<PackageReference Include="MSTest.TestFramework" Version="4.0.2" />
+		<PackageReference Include="MSTest.TestAdapter" Version="4.0.2" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
 		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
 		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
 			<PrivateAssets>all</PrivateAssets>
