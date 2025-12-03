@@ -16,10 +16,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="Damara.Hosting.csproj.vspscc" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\Damara.Core\Damara.Core.csproj" />
 	</ItemGroup>
 

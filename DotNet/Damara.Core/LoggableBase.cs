@@ -27,8 +27,11 @@ public abstract class LoggableBase
             .ToArray());
 
         var type = this.GetType();
+
+        var loggerInstance = logger ?? new LoggerConfiguration().CreateLogger();
+
         this.Logger =
-            logger
+            loggerInstance
             .ForContext(type)
             .ForContext("InstanceId", instanceId);
 
