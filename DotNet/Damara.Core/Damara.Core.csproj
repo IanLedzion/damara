@@ -18,8 +18,8 @@
 	<!-- Common references -->
 	<ItemGroup>
 		<PackageReference Include="EmailValidation" Version="1.3.0" />
-		<PackageReference Include="FluentValidation" Version="12.1.0" />
-        <PackageReference Include="libphonenumber-csharp" Version="9.0.19" />
+		<PackageReference Include="FluentValidation" Version="12.1.1" />
+        <PackageReference Include="libphonenumber-csharp" Version="9.0.20" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.11" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.11" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
