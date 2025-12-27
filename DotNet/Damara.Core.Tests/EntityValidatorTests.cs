@@ -5,7 +5,6 @@
 //-----------------------------------------------------------------------
 
 using Damara.Core.Tests.ObjectInstances;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Damara.Core.Tests;
 

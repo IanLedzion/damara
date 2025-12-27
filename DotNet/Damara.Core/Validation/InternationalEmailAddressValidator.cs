@@ -3,8 +3,6 @@
 // </copyright>
 
 using EmailValidation;
-using FluentValidation;
-using FluentValidation.Validators;
 
 namespace Damara.Validation;
 

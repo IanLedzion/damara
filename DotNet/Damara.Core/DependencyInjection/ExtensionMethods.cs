@@ -2,7 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Damara.DependencyInjection;

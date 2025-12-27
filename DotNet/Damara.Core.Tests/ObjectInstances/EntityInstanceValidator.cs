@@ -2,15 +2,13 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using FluentValidation;
-
 namespace Damara.Core.Tests.ObjectInstances;
 
 /// <summary>
 /// Provides tests for the <see cref="EntityInstance" /> class.
 /// </summary>
 /// <seealso cref="Damara.EntityValidator{EntityInstance}" />
-public class EntityInstanceValidator : ValidatorBase<EntityInstance, MockUnitOfWork>
+public class EntityInstanceValidator : EntityValidator<MockUnitOfWork, EntityInstance>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityInstanceValidator"/> class.

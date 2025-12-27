@@ -2,8 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using System.Collections.Generic;
-
 namespace Damara.Core.Tests.ObjectInstances;
 
 /// <summary>

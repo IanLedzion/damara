@@ -2,9 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using System.Collections.Generic;
-using System.Linq;
-
 namespace Damara.Core.Tests.ObjectInstances;
 
 /// <summary>
@@ -18,7 +15,7 @@ public class EntityInstanceRepository : MockRepository<MockUnitOfWork, EntityIns
     {
     }
 
-    public override IEnumerable<EntityInstance> GetAll() => throw new System.NotImplementedException();
+    public override IQueryable<EntityInstance> GetAll() => throw new System.NotImplementedException();
 
     public override void Add(EntityInstance entity)
     {
