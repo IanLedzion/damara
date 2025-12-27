@@ -3,18 +3,15 @@
 // </copyright>
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using Damara.Core.Tests.ObjectInstances;
-using FluentValidation.Results;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Damara.Core.Tests;
 
 /// <summary>
 /// Provides tests for the <see cref="ValidationLanguageManager"/> class.
 /// </summary>
-[TestClass]
+[TestClass]<
 public class ValidationLanguageManagerTests
 {
     private static readonly IEnumerable<CultureInfo> Cultures = new List<CultureInfo>() { new("en"), new("fr") };
@@ -23,20 +20,18 @@ public class ValidationLanguageManagerTests
     /// Tests that an exception is thrown when sending a null resource manager.
     /// </summary>
     [TestMethod]
-    [ExpectedException(typeof(ArgumentNullException))]
     public void RegisterResources_NullResourceManager_Exception()
     {
-        ValidationLanguageManager.Instance.RegisterResources(null, Cultures);
+        Assert.ThrowsExactly<ArgumentNullException>(() => ValidationLanguageManager.Instance.RegisterResources(null, Cultures));
     }
 
     /// <summary>
     /// Tests that an exception is thrown when sending a null culture collection.
     /// </summary>
     [TestMethod]
-    [ExpectedException(typeof(ArgumentNullException))]
     public void RegisterResources_NullCultures_Exception()
     {
-        ValidationLanguageManager.Instance.RegisterResources(ValidationLanauageResources.ResourceManager, null);
+        Assert.ThrowsExactly<ArgumentNullException>(() => ValidationLanguageManager.Instance.RegisterResources(ValidationLanauageResources.ResourceManager, null));
     }
 
     /// <summary>

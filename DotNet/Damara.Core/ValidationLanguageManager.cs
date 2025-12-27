@@ -5,7 +5,6 @@
 using System.Collections;
 using System.Globalization;
 using System.Resources;
-using FluentValidation;
 using FluentValidation.Resources;
 
 namespace Damara;

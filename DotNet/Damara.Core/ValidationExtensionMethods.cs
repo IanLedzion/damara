@@ -3,7 +3,6 @@
 // </copyright>
 
 using Damara.Validation;
-using FluentValidation;
 
 namespace Damara;
 

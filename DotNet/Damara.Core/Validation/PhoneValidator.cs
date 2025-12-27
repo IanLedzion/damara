@@ -2,8 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using FluentValidation;
-using FluentValidation.Validators;
 using PhoneNumbers;
 
 namespace Damara.Validation;

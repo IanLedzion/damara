@@ -2,9 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using System.Text;
-using Serilog;
-
 namespace Damara.Logging;
 
 /// <summary>

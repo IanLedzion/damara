@@ -2,8 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using Serilog;
-
 namespace Damara;
 
 /// <summary>
