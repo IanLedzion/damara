@@ -11,7 +11,7 @@ namespace Damara.Core.Tests;
 /// <summary>
 /// Provides tests for the <see cref="ValidationLanguageManager"/> class.
 /// </summary>
-[TestClass]<
+[TestClass]
 public class ValidationLanguageManagerTests
 {
     private static readonly IEnumerable<CultureInfo> Cultures = new List<CultureInfo>() { new("en"), new("fr") };
