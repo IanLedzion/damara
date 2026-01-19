@@ -2,6 +2,7 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
+using System;
 using Microsoft.EntityFrameworkCore;
 
 namespace Damara.EntityFramework;
@@ -50,6 +51,7 @@ public abstract class EntityFrameworkRepository<TDbContext, TIUnitOfWork, TUnitO
     {
         ArgumentNullException.ThrowIfNull(entity);
         this.ObjectSet.Add(entity);
+        this.Context.ChangeTracker.DetectChanges();
     }
 
     /// <summary>
