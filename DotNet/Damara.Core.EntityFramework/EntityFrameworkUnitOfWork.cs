@@ -27,6 +27,7 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
     protected EntityFrameworkUnitOfWork(TDbContext dbContext)
     {
         this.Context = dbContext;
+        var seq = this.CreateSequence;
     }
 
     /// <summary>
@@ -151,15 +152,21 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
     }
 
     /// <summary>
+    /// Core before validation method.
+    /// </summary>
+    protected override void OnBeforeValidateCore()
+    {
+        base.OnBeforeValidateCore();
+        this.Context.ChangeTracker.DetectChanges();
+    }
+
+    /// <summary>
     /// Closes the database context.
     /// </summary>
     protected virtual void CloseDataContext()
     {
-        if (this.Context != null)
-        {
-            this.Context.Dispose();
-            this.Context = null;
-        }
+        this.Context?.Dispose();
+        this.Context = null;
     }
 
     /// <summary>

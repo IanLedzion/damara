@@ -62,10 +62,7 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     /// <summary>
     /// Gets a value indicating whether this instance has changes.
     /// </summary>
-    /// <value>
-    ///   <c>true</c> if this instance has changes; otherwise, <c>false</c>.
-    /// </value>
-    public bool HasChanges => this.disposed ? false : this.HasChangesCore;
+    public bool HasChanges => !this.disposed && this.HasChangesCore;
 
     /// <summary>
     /// Gets a value indicating whether this instance has changes.
@@ -169,6 +166,21 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     {
         this.Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Called before validation occurs.
+    /// </summary>
+    void IUnitOfWork.OnBeforeValidate()
+    {
+        this.OnBeforeValidateCore();
+    }
+
+    /// <summary>
+    /// Core before validation method.
+    /// </summary>
+    protected virtual void OnBeforeValidateCore()
+    {
     }
 
     /// <summary>
