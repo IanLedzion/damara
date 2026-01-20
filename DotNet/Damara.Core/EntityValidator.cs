@@ -2,6 +2,8 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
+using FluentValidation.Results;
+
 namespace Damara;
 
 /// <summary>
@@ -26,4 +28,17 @@ public abstract class EntityValidator<TUnitOfWork, TEntity> : AbstractValidator<
     /// Gets the unit of work.
     /// </summary>
     protected TUnitOfWork UnitOfWork { get; }
+
+    /// <summary>
+    /// Determines if validation should occur and provides a means to modify the context and ValidationResult prior to execution.
+    /// If this method returns false, then the ValidationResult is immediately returned from Validate/ValidateAsync.
+    /// </summary>
+    /// <param name="context">The context.</param>
+    /// <param name="result">The validation result.</param>
+    /// <returns>A value indicating whether validation should continue.</returns>
+    protected override bool PreValidate(ValidationContext<TEntity> context, ValidationResult result)
+    {
+        this.UnitOfWork.OnBeforeValidate();
+        return true;
+    }
 }
