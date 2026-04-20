@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="Damara.Blazor/Damara.Blazor.csproj" />
+  <Project Path="Damara.Core.EntityFramework/Damara.Core.EntityFramework.csproj" />
+  <Project Path="Damara.Core.Tests/Damara.Core.Tests.csproj" />
+  <Project Path="Damara.Core/Damara.Core.csproj" />
+  <Project Path="Damara.FontAwesome/Damara.FontAwesome.csproj" />
+  <Project Path="Damara.Hangfire/Damara.Hangfire.csproj" />
+  <Project Path="Damara.Hosting/Damara.Hosting.csproj" />
+  <Project Path="Damara.MSTest/Damara.MSTest.csproj" />
+  <Project Path="Damara.Mvc/Damara.Mvc.csproj" />
+</Solution>

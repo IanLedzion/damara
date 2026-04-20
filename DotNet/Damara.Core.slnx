@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Damara.Core.Tests/Damara.Core.Tests.csproj" />
+  <Project Path="Damara.Core/Damara.Core.csproj" />
+</Solution>
