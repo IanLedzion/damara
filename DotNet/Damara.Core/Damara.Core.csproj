@@ -11,8 +11,6 @@
         <Copyright>Copyright © Ian Ledzion 2015-2024</Copyright>
 		<AssemblyName>Damara</AssemblyName>
 		<RootNamespace>Damara</RootNamespace>
-		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<PackageId>Damara</PackageId>
 	</PropertyGroup>
 
 	<!-- Common references -->
