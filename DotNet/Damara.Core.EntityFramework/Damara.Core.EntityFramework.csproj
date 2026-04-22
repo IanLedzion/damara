@@ -11,8 +11,6 @@
         <Copyright>Copyright Â© Ian Ledzion 2015-2024</Copyright>
         <AssemblyName>Damara.EntityFramework</AssemblyName>
         <RootNamespace>Damara.EntityFramework</RootNamespace>
-        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-        <PackageId>Damara.EntityFramework</PackageId>
         <IncludeSymbols>False</IncludeSymbols>
     </PropertyGroup>
 

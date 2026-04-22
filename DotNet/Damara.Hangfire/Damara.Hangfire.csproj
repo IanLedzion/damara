@@ -11,8 +11,6 @@
 		<Copyright>Copyright © Ian Ledzion 2015-2024</Copyright>
 		<AssemblyName>Damara.Hangfire</AssemblyName>
 		<RootNamespace>Damara.Hangfire</RootNamespace>
-		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<PackageId>Damara.Hangfire</PackageId>
 	</PropertyGroup>
 
 	<!-- Common references  -->
