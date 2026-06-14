@@ -2,7 +2,6 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
-using System;
 using Microsoft.EntityFrameworkCore;
 
 namespace Damara.EntityFramework;
