@@ -7,6 +7,7 @@
 <#@ assembly name="System.Core" #>
 <#@ import namespace="System.Collections" #>
 <#@ import namespace="System.IO" #>
+<#@ import namespace="System.Reflection" #>
 <#@ import namespace="System.Collections.Generic" #>
 <#@ import namespace="System.Linq" #>
 <#@ import namespace="EntityDeveloper" #>
@@ -60,7 +61,7 @@
 <#@ extended name="ContextBase" owner="ContextModel" displayName="Base Context Type" type="System.String" description="Base class for the context class." #>
 <#@ extended name="EntityBase" owner="ContextModel" displayName="Base Entity Type" type="System.String" description="Base class or interface for the entity classes." #>
 <#@ extended name="EntityBase" owner="Class" displayName="Base Type" type="System.String" description="Base class or interface for the entity class." #>
-<#@ extended name="AggregateRootName" owner="Class" displayName="Aggregate Root Name" type="System.String" default="" description="Name of the aggregate the entity belongs to. Drives the output subfolder ({Aggregate}\Entities) and namespace ({DefaultNamespace}.{Aggregate}.Entities). When empty, the UnassignedAggregate placeholder is used." #>
+<#@ extended name="AggregateRootName" owner="Class" displayName="Aggregate Root Name" type="System.String" default="" description="Name of the aggregate the entity belongs to. Drives the output subfolder ({Aggregate}\Entities) and namespace ({DefaultNamespace}.{Aggregate}.Entities). Classes with no value are excluded from generation and reported as a warning." #>
 <#@ extended name="ComplexTypeBase" owner="ContextModel" displayName="Base Complex Type" type="System.String" description="Base class or interface for the complex types." #>
 <#@ extended name="ComplexTypeBase" owner="ComplexType" displayName="Base Type" type="System.String" description="Base class or interface for the complex type." #>
 <#@ extended name="ConstructorModifier" owner="Class" type="MemberAccess" Default="Public" description="Determines access for the class constructor." #>
@@ -120,6 +121,12 @@
     serverInfo = model.GetVendor().ServerInfo;
   else
     serverInfo = model.Settings.ModelFirstSettings.TargetServerInfo.TargetServer;
+
+  // Entity classes without an AggregateRootName are excluded from generation
+  // entirely (files, DbSets, mappings, navigation properties, global usings).
+  var unassignedClasses = model.Classes.Cast<EntityClass>().Where(c => !IsGenerated(c)).Select(c => c.Name).OrderBy(n => n, StringComparer.Ordinal).ToList();
+  if (unassignedClasses.Count > 0)
+    ReportWarning(string.Format("{0} class(es) have no AggregateRootName and were not generated: {1}", unassignedClasses.Count, string.Join(", ", unassignedClasses)));
 
   if (FilePerClass && GeneratePartialClass) {
     output.Extension = ".cs";
@@ -215,6 +222,8 @@ namespace <#= contextNamespace #>;
   // class mapping
   if (!SelfContainedEntityConfiguration) {
     foreach (EntityClass cls in model.Classes) {
+      if (!IsGenerated(cls))
+        continue;
 #>
         this.<#= cls.Name #>Mapping(modelBuilder);
         this.Customize<#= cls.Name #>Mapping(modelBuilder);
@@ -227,6 +236,8 @@ namespace <#= contextNamespace #>;
   }
   else {
     foreach (EntityClass cls in model.Classes) {
+      if (!IsGenerated(cls))
+        continue;
       string fullClassName = GetCodeElementReference(cls, contextNamespace);
 #>
         modelBuilder.ApplyConfiguration<<#= fullClassName #>>(new <#= cls.Name #>Configuration());
@@ -248,7 +259,8 @@ namespace <#= contextNamespace #>;
   if (!SelfContainedEntityConfiguration) {
 
     foreach (EntityClass cls in model.Classes)
-      GenerateFluentClassMapping(cls, contextNamespace, serverInfo);
+      if (IsGenerated(cls))
+        GenerateFluentClassMapping(cls, contextNamespace, serverInfo);
 #>
 
 <#
@@ -268,12 +280,16 @@ namespace <#= contextNamespace #>;
     bool firstClass = true;
     List<EntityAssociation> manyToManyAssociations = new List<EntityAssociation>();
     foreach (EntityClass cls in model.Classes) {
+      if (!IsGenerated(cls))
+        continue;
       if (cls.RelationProperties.Count > 0) {
         bool firstProperty = true;
         string fullClassName = GetCodeElementReference(cls, contextNamespace);
 
         foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
           if (relationProperty.Generate) {
+            if (!IsGenerated(relationProperty.RelationClass))
+              continue;
             EntityRelationProperty oppositeRelationProperty = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
             if (relationProperty.Multiplicity == Multiplicity.Many) {
               if (oppositeRelationProperty.Multiplicity != Multiplicity.Many) { // One-To-Many or ZeroOrOne-To-Many
@@ -420,6 +436,7 @@ namespace <#= contextNamespace #>;
   // Class generation for entities
   //------------------------------------------------------------------------------
   var namespaces = from cls in model.Classes.Cast<EntityClass>()
+    where IsGenerated(cls)
     let namespaceName = GetEmittedNamespace(cls)
     group cls by namespaceName;
 
@@ -546,6 +563,8 @@ namespace <#= _namespace.Key #>;
       // Class navigation fields
       foreach (EntityRelationProperty relationProperty in cls.RelationProperties.OfType<EntityRelationProperty>().Where(r => PropertyChangeNotifiers || PropertyChangePartialMethods || r.Lazy)) {
         if (relationProperty.Generate) {
+          if (!IsGenerated(relationProperty.RelationClass))
+            continue;
 #>
 
     private <#= GetRelationPropertyTypeName(relationProperty, _namespace.Key, defaultNamespace) #> _<#= relationProperty.Name #>;
@@ -597,6 +616,8 @@ namespace <#= _namespace.Key #>;
 
         foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
           if (relationProperty.Generate) {
+            if (!IsGenerated(relationProperty.RelationClass))
+              continue;
             if (relationProperty.Multiplicity == Multiplicity.Many && CollectionInitializationType != EFCoreCollectionInitializationType.None) {
              string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods && !relationProperty.Lazy) ? codeProvider.GetValidIdentifier(relationProperty.Name) : "_" + relationProperty.Name;
 #>
@@ -680,6 +701,8 @@ namespace <#= _namespace.Key #>;
       // Class navigation properties
       foreach (EntityRelationProperty relationProperty in cls.RelationProperties) {
         if (relationProperty.Generate) {
+          if (!IsGenerated(relationProperty.RelationClass))
+            continue;
           if (!((bool)relationProperty.GetProperty("DoNotGenerateDataMemberAttribute"))) 
             propertyCounter ++;
           GenerateRelationProperty(relationProperty, propertyCounter, PropertyChangeNotifiers, _namespace.Key);
@@ -1114,6 +1137,7 @@ namespace <#= _namespace.Key #>;
     }
 
     namespaces = from cls in model.Classes.Cast<EntityClass>()
+      where IsGenerated(cls)
       let namespaceName = GetEmittedNamespace(cls)
       group cls by namespaceName;
 
@@ -1215,7 +1239,7 @@ namespace <#= _namespace.Key #>;
   // The templates emit no using directives, so every namespace the generated
   // code can reference is published here, including the per-aggregate entity
   // namespaces.
-  var globalUsingNamespaces = model.Classes.Cast<EntityClass>().Select(c => GetEmittedNamespace(c))
+  var globalUsingNamespaces = model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c)).Select(c => GetEmittedNamespace(c))
     .Concat(model.ComplexTypes.Cast<EntityComplexType>().Where(t => !t.IsExternal).Select(t => GetEmittedNamespace(t)))
     .Concat(model.EnumTypes.Where(e => !e.IsExternal).Select(e => GetEmittedNamespace(e)))
     .Concat(new[] { contextNamespace })
@@ -1225,6 +1249,13 @@ namespace <#= _namespace.Key #>;
   output.Extension = ".cs";
   output.PushOutputRedirection(EntitiesOutput, "", "GlobalUsings.Generated");
   GenerateFileHeader(true);
+  if (unassignedClasses.Count > 0) {
+#>
+// NOTE: <#= unassignedClasses.Count #> class(es) have no AggregateRootName and were NOT generated:
+//   <#= string.Join(", ", unassignedClasses) #>
+
+<#
+  }
 #>
 
 <#
@@ -1767,6 +1798,8 @@ global using Microsoft.Extensions.Configuration;
 
     // class properties of context
     foreach (EntityClass cls in model.Classes) {
+      if (!IsGenerated(cls))
+        continue;
       string className = GetCodeElementReference(cls, contextNamespace);
 #>
 
@@ -3832,10 +3865,36 @@ global using Microsoft.Extensions.Configuration;
     return codeProvider.GetValidIdentifier(element.Name);
   }
 
+  // Method IsGenerated
+  // Whether a class takes part in generation: entity classes require an
+  // AggregateRootName (unassigned classes are skipped and reported);
+  // complex types and enums always generate.
+  private bool IsGenerated(BaseClass cls) {
+
+    EntityClass entityClass = cls as EntityClass;
+    if (entityClass == null)
+      return true;
+    return !string.IsNullOrEmpty((entityClass.GetProperty("AggregateRootName") as string ?? string.Empty).Trim());
+  }
+
+  // Method ReportWarning
+  // Reports a warning through the host's T4-style Warning method when the
+  // engine provides one; degrades silently otherwise.
+  private void ReportWarning(string message) {
+
+    try {
+      MethodInfo warningMethod = this.GetType().GetMethod("Warning", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[] { typeof(string) }, null);
+      if (warningMethod != null)
+        warningMethod.Invoke(this, new object[] { message });
+    }
+    catch {
+    }
+  }
+
   // Method GetAggregateName
   // The aggregate an entity belongs to, from the AggregateRootName extended
-  // property; a placeholder is used when the model has not been tagged yet so
-  // untagged classes remain visible in both folder tree and namespace.
+  // property; the placeholder is defensive only - unassigned classes are
+  // skipped before emission.
   private string GetAggregateName(EntityClass cls) {
 
     string aggregateName = (cls.GetProperty("AggregateRootName") as string ?? string.Empty).Trim();
