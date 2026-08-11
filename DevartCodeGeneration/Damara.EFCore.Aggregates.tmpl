@@ -94,6 +94,11 @@
   baseFileName = model.FileName;
   output.Extension = ".cs";
 
+  // This template emits file-scoped namespaces, which C# only allows for a
+  // single namespace per file, so multi-class output files are not supported.
+  if (!FilePerClass)
+    throw new InvalidOperationException("The Damara.EFCore.Aggregates template emits file-scoped namespaces and requires the File Per Class output option.");
+
   string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
 
   //------------------------------------------------------------------------------
@@ -120,12 +125,10 @@
     GenerateContextFileHeader(false);
 #>
 
-namespace <#= contextNamespace #>
-{
+namespace <#= contextNamespace #>;
 
-    <#= codeProvider.FormatClassAccess(model.Access) #> partial class <#= contextClassName #>
-    {
-    }
+<#= codeProvider.FormatClassAccess(model.Access) #> partial class <#= contextClassName #>
+{
 }
 <#
     output.PopOutputRedirection();
@@ -139,20 +142,18 @@ namespace <#= contextNamespace #>
   GenerateContextFileHeader(true);
   if (!FilePerClass) {
 #>
-using Microsoft.EntityFrameworkCore.Infrastructure;
 <#
   }
 #>
 
-namespace <#= contextNamespace #>
-{
+namespace <#= contextNamespace #>;
 
 <#
       if (GenerateDummyComments) {
 #>
-    /// <summary>
-    /// There are no comments for <#= contextClassName #> class in the schema.
-    /// </summary>
+/// <summary>
+/// There are no comments for <#= contextClassName #> class in the schema.
+/// </summary>
 <#
       }
 #>
@@ -160,12 +161,12 @@ namespace <#= contextNamespace #>
   foreach (AttributeValue attribute in model.Attributes) {
     output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#= codeProvider.FormatAttributeValue(attribute) #>
 <#
   }
   if (GenerateGeneratedCodeAttributes) {
 #>
-    [GeneratedCode("Devart Entity Developer", "")]
+[GeneratedCode("Devart Entity Developer", "")]
 <#
   }
 
@@ -179,8 +180,8 @@ namespace <#= contextNamespace #>
       contextBase = contextBase.Replace("%type name%", contextClassName);      
   }
 #>
-    <#= codeProvider.FormatClassAccess(model.Access) #><#= contextInheritanceModifier #> partial class <#= contextClassName #> : <#= contextBase #>
-    {
+<#= codeProvider.FormatClassAccess(model.Access) #><#= contextInheritanceModifier #> partial class <#= contextClassName #> : <#= contextBase #>
+{
 
 <#
   GenerateContextConstructors();
@@ -193,18 +194,18 @@ namespace <#= contextNamespace #>
 
   if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for OnModelCreating in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for OnModelCreating in the schema.
+    /// </summary>
 <#
   }
 #>
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
 <#
   if (!string.IsNullOrEmpty(contextBase)) {
 #>
-            base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(modelBuilder);
 
 <#
   }
@@ -213,33 +214,33 @@ namespace <#= contextNamespace #>
   if (!SelfContainedEntityConfiguration) {
     foreach (EntityClass cls in model.Classes) {
 #>
-            this.<#= cls.Name #>Mapping(modelBuilder);
-            this.Customize<#= cls.Name #>Mapping(modelBuilder);
+        this.<#= cls.Name #>Mapping(modelBuilder);
+        this.Customize<#= cls.Name #>Mapping(modelBuilder);
 
 <#
     }
 #>
-            RelationshipsMapping(modelBuilder);
+        RelationshipsMapping(modelBuilder);
 <#
   }
   else {
     foreach (EntityClass cls in model.Classes) {
       string fullClassName = GetCodeElementReference(cls, contextNamespace);
 #>
-            modelBuilder.ApplyConfiguration<<#= fullClassName #>>(new <#= cls.Name #>Configuration());
+        modelBuilder.ApplyConfiguration<<#= fullClassName #>>(new <#= cls.Name #>Configuration());
 <#
       if (cls.QueryType && !string.IsNullOrEmpty(cls.RawSQLQuery)) {
         string rootMethod = model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
         string fromSqlMethodName = model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version2 ? "FromSql" : "FromSqlRaw";
 #>
-            modelBuilder.<#= rootMethod #><<#= fullClassName #>>().ToQuery(() => this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>.<#= fromSqlMethodName #>(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>"));
+        modelBuilder.<#= rootMethod #><<#= fullClassName #>>().ToQuery(() => this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>.<#= fromSqlMethodName #>(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>"));
 <#
       }
     }
   }
 #>
-            CustomizeMapping(ref modelBuilder);
-        }
+        CustomizeMapping(ref modelBuilder);
+    }
 <#
   // class mapping
   if (!SelfContainedEntityConfiguration) {
@@ -251,14 +252,14 @@ namespace <#= contextNamespace #>
 <#
     if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for RelationshipsMapping in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for RelationshipsMapping in the schema.
+    /// </summary>
 <#
     }
 #>
-        private void RelationshipsMapping(ModelBuilder modelBuilder)
-        {
+    private void RelationshipsMapping(ModelBuilder modelBuilder)
+    {
 <#
 
     // generate navigation properties mapping
@@ -282,7 +283,7 @@ namespace <#= contextNamespace #>
                 firstClass = false;
                 firstProperty = false;
 #>
-            modelBuilder.Entity<<#= fullClassName #>>().<# GenerateCollectionRelationPropertyMapping(relationProperty, serverInfo); #>;
+        modelBuilder.Entity<<#= fullClassName #>>().<# GenerateCollectionRelationPropertyMapping(relationProperty, serverInfo); #>;
 <#
               }
               else { // Many-To-Many
@@ -290,7 +291,7 @@ namespace <#= contextNamespace #>
                 if (!manyToManyAssociations.Contains(association)) {
                   manyToManyAssociations.Add(association);
 #>
-            modelBuilder.Entity<<#= fullClassName #>>().<# GenerateManyToManyRelationPropertyMapping(relationProperty, serverInfo); #>;
+        modelBuilder.Entity<<#= fullClassName #>>().<# GenerateManyToManyRelationPropertyMapping(relationProperty, serverInfo); #>;
 <#
                 }
               }
@@ -308,7 +309,7 @@ namespace <#= contextNamespace #>
                 firstProperty = false;
                 string rootMethod = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
 #>
-            modelBuilder.<#= rootMethod #><<#= fullClassName #>>().<# GenerateHasOneRelationPropertyMapping(relationProperty); #>;
+        modelBuilder.<#= rootMethod #><<#= fullClassName #>>().<# GenerateHasOneRelationPropertyMapping(relationProperty); #>;
 <#
               }
             }
@@ -317,49 +318,49 @@ namespace <#= contextNamespace #>
       }
     }
 #>
-        }
-<#
-  }
-#>
-
-<#
-  if (GenerateDummyComments) {
-#>
-
-        /// <summary>
-        /// There are no comments for CustomizeMapping in the schema.
-        /// </summary>
-<#
-  }
-#>
-        partial void CustomizeMapping(ref ModelBuilder modelBuilder);
-
-<#
-  if (GenerateDummyComments) {
-#>
-        /// <summary>
-        /// There are no comments for HasChanges property in the schema.
-        /// </summary>
-<#
-  }
-#>
-        public bool HasChanges()
-        {
-            return ChangeTracker.Entries().Any(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Added || e.State == Microsoft.EntityFrameworkCore.EntityState.Modified || e.State == Microsoft.EntityFrameworkCore.EntityState.Deleted);
-        }
-
-<#
-  if (GenerateDummyComments) {
-#>
-
-        /// <summary>
-        /// There are no comments for OnCreated method in the schema.
-        /// </summary>
-<#
-  }
-#>
-        partial void OnCreated();
     }
+<#
+  }
+#>
+
+<#
+  if (GenerateDummyComments) {
+#>
+
+    /// <summary>
+    /// There are no comments for CustomizeMapping in the schema.
+    /// </summary>
+<#
+  }
+#>
+    partial void CustomizeMapping(ref ModelBuilder modelBuilder);
+
+<#
+  if (GenerateDummyComments) {
+#>
+    /// <summary>
+    /// There are no comments for HasChanges property in the schema.
+    /// </summary>
+<#
+  }
+#>
+    public bool HasChanges()
+    {
+        return ChangeTracker.Entries().Any(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Added || e.State == Microsoft.EntityFrameworkCore.EntityState.Modified || e.State == Microsoft.EntityFrameworkCore.EntityState.Deleted);
+    }
+
+<#
+  if (GenerateDummyComments) {
+#>
+
+    /// <summary>
+    /// There are no comments for OnCreated method in the schema.
+    /// </summary>
+<#
+  }
+#>
+    partial void OnCreated();
+}
 <#
   // End of DbContext generation.
 
@@ -370,11 +371,11 @@ namespace <#= contextNamespace #>
   foreach (EntityMethod method in model.Methods.Where(m => m.MethodType == MethodType.MultipleResult)) {
 #>
 
-    <#= codeProvider.FormatMemberAccess(method.Access) #> class <#= method.Name #>MultipleResult
-    {
+<#= codeProvider.FormatMemberAccess(method.Access) #> class <#= method.Name #>MultipleResult
+{
 
-        public <#= method.Name #>MultipleResult()
-        {
+    public <#= method.Name #>MultipleResult()
+    {
 <#
           List<string> names = new List<string>();
           foreach (BaseClass res in (IList)method.ReturnType) {
@@ -386,11 +387,11 @@ namespace <#= contextNamespace #>
             }
             names.Add(name);
 #>
-          <#= codeProvider.GetValidIdentifier(name) #> = new List<<#= GetCodeElementReference(res, contextNamespace) #>>();
+      <#= codeProvider.GetValidIdentifier(name) #> = new List<<#= GetCodeElementReference(res, contextNamespace) #>>();
 <#
           }
 #>
-        }
+    }
 
 <#
           names = new List<string>();
@@ -403,15 +404,14 @@ namespace <#= contextNamespace #>
             }
             names.Add(name);
 #>
-        <#= codeProvider.FormatClassAccess(res.Access) #> List<<#= GetCodeElementReference(res, contextNamespace) #>> <#= codeProvider.GetValidIdentifier(name) #> { get; private set; }
+    <#= codeProvider.FormatClassAccess(res.Access) #> List<<#= GetCodeElementReference(res, contextNamespace) #>> <#= codeProvider.GetValidIdentifier(name) #> { get; private set; }
 <#
           }
 #>
-    }
+}
 <#
   } // End of classes for MultipleResult methods generation
 #>
-}
 <#
 
   //------------------------------------------------------------------------------
@@ -425,8 +425,7 @@ namespace <#= contextNamespace #>
     if (!FilePerClass) {
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
     }
     foreach (EntityClass cls in _namespace) {
@@ -440,12 +439,10 @@ namespace <#= _namespace.Key #>
           GenerateFileHeader(false);
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 
-    <#= codeProvider.FormatClassAccess(cls.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(cls.Name) #>
-    {
-    }
+<#= codeProvider.FormatClassAccess(cls.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(cls.Name) #>
+{
 }
 <#
           output.PopOutputRedirection();
@@ -459,13 +456,11 @@ namespace <#= _namespace.Key #>
         GenerateFileHeader(true);
         if (lazy) {
 #>
-using Microsoft.EntityFrameworkCore.Infrastructure;
 <#
         }
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
       }
 
@@ -505,7 +500,7 @@ namespace <#= _namespace.Key #>
       // Entity class attributes
       if (GenerateGeneratedCodeAttributes) {
 #>
-    [GeneratedCode("Devart Entity Developer", "")]
+[GeneratedCode("Devart Entity Developer", "")]
 <#
       }
 
@@ -514,14 +509,14 @@ namespace <#= _namespace.Key #>
       foreach (AttributeValue attribute in cls.Attributes) {
         output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#= codeProvider.FormatAttributeValue(attribute) #>
 <#
       }
 
       // Entity class code
       string inheritanceModifier = cls.InheritanceModifier == ClassInheritanceModifier.None ? "" : " " + codeProvider.FormatClassInheritanceModifier(cls.InheritanceModifier);
 #>
-    <#= codeProvider.FormatClassAccess(cls.Access) #><#= inheritanceModifier #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(cls.Name) #><# if (!string.IsNullOrEmpty(baseList)) { #> : <#= baseList #><# } #>
+<#= codeProvider.FormatClassAccess(cls.Access) #><#= inheritanceModifier #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(cls.Name) #><# if (!string.IsNullOrEmpty(baseList)) { #> : <#= baseList #><# } #>
  {
 <#
 
@@ -529,7 +524,7 @@ namespace <#= _namespace.Key #>
       if (implementPropertyChanging) {
 #>
 
-        private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(System.String.Empty);
+    private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(System.String.Empty);
 <#
      }
 
@@ -539,7 +534,7 @@ namespace <#= _namespace.Key #>
           if (!property.Shadow) {
 #>
 
-        private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
+    private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
 <#
           }
         }
@@ -550,7 +545,7 @@ namespace <#= _namespace.Key #>
         if (relationProperty.Generate) {
 #>
 
-        private <#= GetRelationPropertyTypeName(relationProperty, _namespace.Key, defaultNamespace) #> _<#= relationProperty.Name #>;
+    private <#= GetRelationPropertyTypeName(relationProperty, _namespace.Key, defaultNamespace) #> _<#= relationProperty.Name #>;
 <#
         }
       }
@@ -563,14 +558,14 @@ namespace <#= _namespace.Key #>
 <#
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+    /// </summary>
 <#
         }
 #>
-        <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>()
-        {
+    <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>()
+    {
 <#
         foreach (EntityProperty property in cls.Properties) {
           if (!property.Shadow) {
@@ -581,7 +576,7 @@ namespace <#= _namespace.Key #>
               if (nspace != _namespace.Key)
                 propertyDataType = nspace + "." + propertyDataType;
 #>
-            this.<#= propertyName #> = new <#= propertyDataType #>();
+        this.<#= propertyName #> = new <#= propertyDataType #>();
 <#
             }
             else {
@@ -589,7 +584,7 @@ namespace <#= _namespace.Key #>
                 string formatedDefaultValue = model.GetModelDescriptor().CanFormatDefaultValue(property.Type, property.Column.Default) ? codeProvider.FormatPropertyValue(property.Type, property.Column.Default, PrimitiveDefaultValueGeneration) : null;
                 if (!string.IsNullOrEmpty(formatedDefaultValue)) {
 #>
-            this.<#= propertyName #> = <#= formatedDefaultValue #>;
+        this.<#= propertyName #> = <#= formatedDefaultValue #>;
 <#
                 }
               }
@@ -602,14 +597,14 @@ namespace <#= _namespace.Key #>
             if (relationProperty.Multiplicity == Multiplicity.Many && CollectionInitializationType != EFCoreCollectionInitializationType.None) {
              string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods && !relationProperty.Lazy) ? codeProvider.GetValidIdentifier(relationProperty.Name) : "_" + relationProperty.Name;
 #>
-            this.<#= propertyName #> = new <#= GetRelationPropertyCollectionInitialization(relationProperty, _namespace.Key, defaultNamespace) #>;
+        this.<#= propertyName #> = new <#= GetRelationPropertyCollectionInitialization(relationProperty, _namespace.Key, defaultNamespace) #>;
 <#
             }
           }
         }
 #>
-            OnCreated();
-        }
+        OnCreated();
+    }
 <#
       }
 
@@ -625,26 +620,26 @@ namespace <#= _namespace.Key #>
         }
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+    /// </summary>
 <#
         }
 #>
-        <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>(<#= string.Join(", ", parameters.Select(p => GetPropertyTypeName(p.Value, _namespace.Key, defaultNamespace) + " " + p.Key)) #>)<#
+    <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>(<#= string.Join(", ", parameters.Select(p => GetPropertyTypeName(p.Value, _namespace.Key, defaultNamespace) + " " + p.Key)) #>)<#
         if (!doNotGenerateDefaultConstructor) {
           #> : this()<#
         }
         #>
-        {
+    {
 <#
         foreach (var param in parameters) {
 #>
-            this.<#= codeProvider.GetValidIdentifier(param.Value.Name) #> = <#= codeProvider.GetValidIdentifier(param.Key) #>;
+        this.<#= codeProvider.GetValidIdentifier(param.Value.Name) #> = <#= codeProvider.GetValidIdentifier(param.Key) #>;
 <#
         }
 #>
-        }
+    }
 <#
       }
 
@@ -655,18 +650,18 @@ namespace <#= _namespace.Key #>
 <#
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+    /// </summary>
 <#
         }
 #>
-        private <#= codeProvider.GetValidIdentifier(cls.Name) #>(ILazyLoader lazyLoader) : this()
-        {
-            LazyLoader = lazyLoader;
-        }
+    private <#= codeProvider.GetValidIdentifier(cls.Name) #>(ILazyLoader lazyLoader) : this()
+    {
+        LazyLoader = lazyLoader;
+    }
 
-        private ILazyLoader LazyLoader { get; set; }
+    private ILazyLoader LazyLoader { get; set; }
 <#
       }
 
@@ -704,39 +699,38 @@ namespace <#= _namespace.Key #>
         var overrideModifier = cls.InheritanceModifier == ClassInheritanceModifier.Sealed ? string.Empty : codeProvider.FormatMemberInheritanceModifier(MemberInheritanceModifier.Virtual) + ' ';
 #>
 
-        public <#= overrideModifier #>event PropertyChangingEventHandler PropertyChanging;
+    public <#= overrideModifier #>event PropertyChangingEventHandler PropertyChanging;
 
-        public <#= overrideModifier #>event PropertyChangedEventHandler PropertyChanged;
+    public <#= overrideModifier #>event PropertyChangedEventHandler PropertyChanged;
 
-        protected <#= overrideModifier #>void SendPropertyChanging()
-        {
-            var handler = this.PropertyChanging;
-            if (handler != null)
-                handler(this, emptyChangingEventArgs);
-        }
+    protected <#= overrideModifier #>void SendPropertyChanging()
+    {
+        var handler = this.PropertyChanging;
+        if (handler != null)
+            handler(this, emptyChangingEventArgs);
+    }
 
-        protected <#= overrideModifier #>void SendPropertyChanging(System.String propertyName) 
-        {
-            var handler = this.PropertyChanging;
-            if (handler != null)
-                handler(this, new PropertyChangingEventArgs(propertyName));
-        }
+    protected <#= overrideModifier #>void SendPropertyChanging(System.String propertyName) 
+    {
+        var handler = this.PropertyChanging;
+        if (handler != null)
+            handler(this, new PropertyChangingEventArgs(propertyName));
+    }
 
-        protected <#= overrideModifier #>void SendPropertyChanged(System.String propertyName)
-        {
-            var handler = this.PropertyChanged;
-            if (handler != null)
-                handler(this, new PropertyChangedEventArgs(propertyName));
-        }
+    protected <#= overrideModifier #>void SendPropertyChanged(System.String propertyName)
+    {
+        var handler = this.PropertyChanged;
+        if (handler != null)
+            handler(this, new PropertyChangedEventArgs(propertyName));
+    }
 <#
       }
 #>
-    }
+}
 <#
       if (FilePerClass) {
 #>
 
-}
 <#
         output.PopOutputRedirection();
       }
@@ -746,7 +740,6 @@ namespace <#= _namespace.Key #>
     if (!FilePerClass) {
 #>
 
-}
 <#
     }
   } // End of namespace generation
@@ -763,8 +756,7 @@ namespace <#= _namespace.Key #>
     if (!FilePerClass) {
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
     }
     foreach (EntityComplexType type in _namespace) {
@@ -777,12 +769,10 @@ namespace <#= _namespace.Key #>
           GenerateFileHeader(false);
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 
-    <#= codeProvider.FormatClassAccess(type.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(type.Name) #>
-    {
-    }
+<#= codeProvider.FormatClassAccess(type.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(type.Name) #>
+{
 }
 <#
           output.PopOutputRedirection();
@@ -796,8 +786,7 @@ namespace <#= _namespace.Key #>
         GenerateFileHeader(true);
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
       }
 
@@ -809,13 +798,13 @@ namespace <#= _namespace.Key #>
       foreach (AttributeValue attribute in type.Attributes) {
         output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#= codeProvider.FormatAttributeValue(attribute) #>
 <#
       }
 
       if (GenerateGeneratedCodeAttributes) {
 #>
-    [GeneratedCode("Devart Entity Developer", "")]
+[GeneratedCode("Devart Entity Developer", "")]
 <#
       }
 
@@ -839,13 +828,13 @@ namespace <#= _namespace.Key #>
         baseList = string.IsNullOrEmpty(baseList) ? complexTypeBase : complexTypeBase + ", " + baseList;
       }
 #>
-    <#= codeProvider.FormatClassAccess(type.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(type.Name) #><# if (!string.IsNullOrEmpty(baseList)) { #> : <#= baseList #><# } #>
+<#= codeProvider.FormatClassAccess(type.Access) #> partial <#= objectType #> <#= codeProvider.GetValidIdentifier(type.Name) #><# if (!string.IsNullOrEmpty(baseList)) { #> : <#= baseList #><# } #>
  {
 <#
       if (PropertyChangeNotifiers) {
 #>
 
-        private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(System.String.Empty);
+    private static PropertyChangingEventArgs emptyChangingEventArgs = new PropertyChangingEventArgs(System.String.Empty);
 <#
       }
 #>
@@ -856,7 +845,7 @@ namespace <#= _namespace.Key #>
           if (!property.Shadow) {
 #>
 
-        private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
+    private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
 <#
           }
         }
@@ -870,14 +859,14 @@ namespace <#= _namespace.Key #>
 <#
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(type.Name) #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(type.Name) #> constructor in the schema.
+    /// </summary>
 <#
         }
 #>
-        <#= codeProvider.FormatMemberAccess((MemberAccess)type.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(type.Name) #>()
-        {
+    <#= codeProvider.FormatMemberAccess((MemberAccess)type.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(type.Name) #>()
+    {
 <#
         // Type component fields initialization
         foreach (EntityProperty property in type.Properties) {
@@ -888,13 +877,13 @@ namespace <#= _namespace.Key #>
               propertyDataType = nspace + "." + propertyDataType;
             string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods) ? codeProvider.GetValidIdentifier(property.Name) : "_" + property.Name;
 #>
-            this.<#= propertyName #> = new <#= propertyDataType #>();
+        this.<#= propertyName #> = new <#= propertyDataType #>();
 <#
           }
         }
 #>
-            OnCreated();
-        }
+        OnCreated();
+    }
 <#
       }
 
@@ -910,26 +899,26 @@ namespace <#= _namespace.Key #>
         }
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(type.Name) #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(type.Name) #> constructor in the schema.
+    /// </summary>
 <#
         }
 #>
-        <#= codeProvider.FormatMemberAccess((MemberAccess)type.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(type.Name) #>(<#= string.Join(", ", parameters.Select(p => GetPropertyTypeName(p.Value, _namespace.Key, defaultNamespace) + " " + p.Key)) #>)<#
+    <#= codeProvider.FormatMemberAccess((MemberAccess)type.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(type.Name) #>(<#= string.Join(", ", parameters.Select(p => GetPropertyTypeName(p.Value, _namespace.Key, defaultNamespace) + " " + p.Key)) #>)<#
         if (!doNotGenerateDefaultConstructor) {
           #> : this()<#
         }
         #>
-        {
+    {
 <#
         foreach (var param in parameters) {
 #>
-            this.<#= codeProvider.GetValidIdentifier(param.Value.Name) #> = <#= codeProvider.GetValidIdentifier(param.Key) #>;
+        this.<#= codeProvider.GetValidIdentifier(param.Value.Name) #> = <#= codeProvider.GetValidIdentifier(param.Key) #>;
 <#
         }
 #>
-        }
+    }
 <#
       }
 
@@ -956,39 +945,38 @@ namespace <#= _namespace.Key #>
       if (PropertyChangeNotifiers) {
 #>
 
-        public virtual event PropertyChangingEventHandler PropertyChanging;
+    public virtual event PropertyChangingEventHandler PropertyChanging;
 
-        public virtual event PropertyChangedEventHandler PropertyChanged;
+    public virtual event PropertyChangedEventHandler PropertyChanged;
 
-        protected virtual void SendPropertyChanging()
-        {
-            var handler = this.PropertyChanging;
-            if (handler != null)
-                handler(this, emptyChangingEventArgs);
-        }
+    protected virtual void SendPropertyChanging()
+    {
+        var handler = this.PropertyChanging;
+        if (handler != null)
+            handler(this, emptyChangingEventArgs);
+    }
 
-        protected virtual void SendPropertyChanging(System.String propertyName) 
-        {
-            var handler = this.PropertyChanging;
-            if (handler != null)
-                handler(this, new PropertyChangingEventArgs(propertyName));
-        }
+    protected virtual void SendPropertyChanging(System.String propertyName) 
+    {
+        var handler = this.PropertyChanging;
+        if (handler != null)
+            handler(this, new PropertyChangingEventArgs(propertyName));
+    }
 
-        protected virtual void SendPropertyChanged(System.String propertyName)
-        {
-            var handler = this.PropertyChanged;
-            if (handler != null)
-                handler(this, new PropertyChangedEventArgs(propertyName));
-        }
+    protected virtual void SendPropertyChanged(System.String propertyName)
+    {
+        var handler = this.PropertyChanged;
+        if (handler != null)
+            handler(this, new PropertyChangedEventArgs(propertyName));
+    }
 <#
       }
 #>
-    }
+}
 <#
       if (FilePerClass) {
 #>
 
-}
 <#
         output.PopOutputRedirection();
       }
@@ -998,7 +986,6 @@ namespace <#= _namespace.Key #>
     if (!FilePerClass) {
 #>
 
-}
 <#
     }
   } // End of namespace generation
@@ -1015,8 +1002,7 @@ namespace <#= _namespace.Key #>
     if (!FilePerClass) {
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
     }
     foreach (EntityEnumType enumType in _namespace) {
@@ -1029,8 +1015,7 @@ namespace <#= _namespace.Key #>
         GenerateFileHeader(true);
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
       }
 
@@ -1043,26 +1028,26 @@ namespace <#= _namespace.Key #>
       foreach (AttributeValue attribute in enumType.Attributes) {
         output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-    <#= codeProvider.FormatAttributeValue(attribute) #>
+<#= codeProvider.FormatAttributeValue(attribute) #>
 <#
       }
 
       if (GenerateGeneratedCodeAttributes) {
 #>
-    [GeneratedCode("Devart Entity Developer", "")]
+[GeneratedCode("Devart Entity Developer", "")]
 <#
       }
 
       if (enumType.IsFlag) {
 #>
-    [Flags]
+[Flags]
 <#
       }
 
       // Enum code generation
 #>
-    <#= codeProvider.FormatClassAccess(enumType.Access) #> enum <#= codeProvider.GetValidIdentifier(enumType.Name) #> : <#= codeProvider.GetNullableType(false, enumType.EntityUnderlyingDataType) #>
-    {<#
+<#= codeProvider.FormatClassAccess(enumType.Access) #> enum <#= codeProvider.GetValidIdentifier(enumType.Name) #> : <#= codeProvider.GetNullableType(false, enumType.EntityUnderlyingDataType) #>
+{<#
       // enum type members
       if (enumType.Members.Count > 0) {
         foreach (EnumTypeMember member in enumType.Members) {
@@ -1076,27 +1061,26 @@ namespace <#= _namespace.Key #>
           foreach (AttributeValue attribute in member.Attributes) {
             output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-        <#= codeProvider.FormatAttributeValue(attribute) #>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
 <#
           }
 
           if (GenerateDataContracts && (bool)member.GetProperty("GenerateEnumMemberAttribute")) {
 #>
-        [EnumMember]
+    [EnumMember]
 <#
           }
 #>
-        <#= codeProvider.GetValidIdentifier(member.Name) #><# if (member.Value != null) { #> = <#= member.Value.ToString() #><# } #><# if (member != enumType.Members.Last()) { #>,<# } #>
+    <#= codeProvider.GetValidIdentifier(member.Name) #><# if (member.Value != null) { #> = <#= member.Value.ToString() #><# } #><# if (member != enumType.Members.Last()) { #>,<# } #>
 <#
         }
       } // End of enum type members generation 
 #>
 
-    }
+}
 <#
       if (FilePerClass) {
 #>
-}
 <#
         output.PopOutputRedirection();
       }
@@ -1106,7 +1090,6 @@ namespace <#= _namespace.Key #>
     if (!FilePerClass) {
 #>
 
-}
 <#
     }
   } // End of namespace generation
@@ -1134,8 +1117,7 @@ namespace <#= _namespace.Key #>
       if (!FilePerClass) {
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
       }
       foreach (EntityClass cls in _namespace) {
@@ -1147,17 +1129,15 @@ namespace <#= _namespace.Key #>
             GenerateConfigurationFileHeader(false);
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 
-    /// <summary>
-    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration in the schema.
-    /// </summary>
-    <#= codeProvider.FormatClassAccess(cls.Access) #> partial class <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration
+/// <summary>
+/// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration in the schema.
+/// </summary>
+<#= codeProvider.FormatClassAccess(cls.Access) #> partial class <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration
+{
+    partial void CustomizeConfiguration(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder)
     {
-        partial void CustomizeConfiguration(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder)
-        {
-        }
     }
 }
 <#
@@ -1170,49 +1150,47 @@ namespace <#= _namespace.Key #>
           GenerateConfigurationFileHeader(true);
 #>
 
-namespace <#= _namespace.Key #>
-{
+namespace <#= _namespace.Key #>;
 <#
         }
 #>
-    /// <summary>
-    /// There are no comments for <#= cls.Name #>Configuration in the schema.
-    /// </summary>
+/// <summary>
+/// There are no comments for <#= cls.Name #>Configuration in the schema.
+/// </summary>
 <#
         if (GenerateGeneratedCodeAttributes) {
 #>
-    [GeneratedCode("Devart Entity Developer", "")]
+[GeneratedCode("Devart Entity Developer", "")]
 <#
         }
 #>
-    <#= codeProvider.FormatClassAccess(cls.Access) #> partial class <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration : I<#= classType #>TypeConfiguration<<#= codeProvider.GetValidIdentifier(cls.Name) #>>
-    {
+<#= codeProvider.FormatClassAccess(cls.Access) #> partial class <#= codeProvider.GetValidIdentifier(cls.Name) #>Configuration : I<#= classType #>TypeConfiguration<<#= codeProvider.GetValidIdentifier(cls.Name) #>>
+{
 <#
 
 #>
-        /// <summary>
-        /// There are no comments for Configure(EntityTypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder) method in the schema.
-        /// </summary>
-        public void Configure(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder)
-        {
+    /// <summary>
+    /// There are no comments for Configure(EntityTypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder) method in the schema.
+    /// </summary>
+    public void Configure(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder)
+    {
 <#
         GenerateConfigurationClassMapping(cls, contextNamespace, serverInfo);
 #>
 
-            CustomizeConfiguration(builder);
-        }
-
-        #region Partial Methods
-
-        partial void CustomizeConfiguration(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder);
-
-        #endregion
+        CustomizeConfiguration(builder);
     }
+
+    #region Partial Methods
+
+    partial void CustomizeConfiguration(<#= classType #>TypeBuilder<<#= codeProvider.GetValidIdentifier(cls.Name) #>> builder);
+
+    #endregion
+}
 
 <#
         if (FilePerClass) {
 #>
-}
 <#
           output.PopOutputRedirection();
         }
@@ -1221,7 +1199,6 @@ namespace <#= _namespace.Key #>
 
       if (!FilePerClass) {
 #>
-}
 <#
       }
     } // End of namespace generation
@@ -1269,37 +1246,26 @@ namespace <#= _namespace.Key #>
       }
     }
 #>
-using System;
 <#+
     if (GenerateGeneratedCodeAttributes) {
 #>
-using System.CodeDom.Compiler;
 <#+
     }
 #>
-using System.Collections.Generic;
-using System.ComponentModel;
 <#+
     GenerateDataAnnotationsValidationNamespace();
 #>
-using System.Data;
-using System.Data.Common;
-using System.Linq;
-using System.Linq.Expressions;
 <#+
     if (SerializationLibrary == SerializationLibrary.DataContract || GenerateDataContracts) {
 #>
-using System.Runtime.Serialization;
 <#+
     }
     if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
 #>
-using Newtonsoft.Json;
 <#+
     }
     else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-using System.Text.Json.Serialization;
 <#+
     }
 
@@ -1307,7 +1273,6 @@ using System.Text.Json.Serialization;
 
     if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
 #>
-using YamlDotNet.Serialization;
 <#+
     }
 #>
@@ -1351,41 +1316,25 @@ using YamlDotNet.Serialization;
       }
     }
 #>
-using System;
 <#+
     if (GenerateGeneratedCodeAttributes) {
 #>
-using System.CodeDom.Compiler;
 <#+
     }
 #>
-using System.Collections.Generic;
-using System.ComponentModel;
 <#+
     if (!FilePerClass)
       GenerateDataAnnotationsValidationNamespace();
 #>
-using System.Data;
-using System.Data.Common;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 <#+
     if (!FilePerClass && SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-using System.Text.Json.Serialization;
 <#+
     }
 #>
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Internal;
-using Microsoft.EntityFrameworkCore.Metadata;
 <#+
     if (model.Settings.TargetFramework.IsNetCore() && model.Settings.ConnectionStringInAppConfig && !String.IsNullOrEmpty(model.Settings.AppConnectionStringName)) {
 #>
-using Microsoft.Extensions.Configuration;
 <#+
     }
 
@@ -1393,19 +1342,16 @@ using Microsoft.Extensions.Configuration;
     if (providerInvariantName == ProvidersManager.MySQLConnectorNETInvariantName) {
       if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
 #>
-using MySql.EntityFrameworkCore.Extensions;
 <#+
       }
       else {
 #>
-using MySql.Data.EntityFrameworkCore.Extensions;
 <#+
       }
     }
 
     if (!FilePerClass && SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
 #>
-using Newtonsoft.Json;
 <#+
     }
 
@@ -1414,14 +1360,12 @@ using Newtonsoft.Json;
 
     if (!FilePerClass && SerializationLibrary == SerializationLibrary.YamlDotNet) {
 #>
-using YamlDotNet.Serialization;
 <#+
     }
 
     if (!string.IsNullOrEmpty(model.ContextNamespace) && model.ContextNamespace != model.GetDefaultNamespace() &&
        (model.Classes.Any(c => string.IsNullOrEmpty(c.Namespace)) || model.ComplexTypes.Any(c => string.IsNullOrEmpty(c.Namespace)) || model.EnumTypes.Any(c => !c.IsExternal && string.IsNullOrEmpty(c.Namespace)))) {
 #>
-using <#= codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) #>;
 <#+
     }
   }
@@ -1456,22 +1400,12 @@ using <#= codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) #>;
       }
     }
 #>
-using System;
 <#+
     if (GenerateGeneratedCodeAttributes) {
 #>
-using System.CodeDom.Compiler;
 <#+
     }
 #>
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Data.Common;
-using System.Linq;
-using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
   }
 #>
@@ -1486,17 +1420,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (!(bool)model.GetProperty("DoNotGenerateDefaultConstructor")) {
       if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= model.Name #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= model.Name #> constructor in the schema.
+    /// </summary>
 <#+
       }
 #>
-        public <#= model.Name #>() :
-            base()
-        {
-            OnCreated();
-        }
+    public <#= model.Name #>() :
+        base()
+    {
+        OnCreated();
+    }
 
 <#+
     }
@@ -1504,13 +1438,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (!(bool)model.GetProperty("DoNotGenerateConstructorWithDbContextOptionsArgument")) {
       if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= model.Name #> constructor in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= model.Name #> constructor in the schema.
+    /// </summary>
 <#+
       }
 #>
-        public <#= model.Name #>(<#+
+    public <#= model.Name #>(<#+
       if ((bool)model.GetProperty("UseGenericDbContextOptionsConstructorArgument")) {
         #>DbContextOptions<<#= model.Name #>><#+
       }
@@ -1518,10 +1452,10 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         #>DbContextOptions<#+
       }
       #> options) :
-            base(options)
-        {
-            OnCreated();
-        }
+        base(options)
+    {
+        OnCreated();
+    }
 <#+
     }
   }
@@ -1542,18 +1476,18 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
     if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for OnConfiguring(DbContextOptionsBuilder optionsBuilder) method in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for OnConfiguring(DbContextOptionsBuilder optionsBuilder) method in the schema.
+    /// </summary>
 <#+
     }
 #>
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured ||
+            (!optionsBuilder.Options.Extensions.OfType<RelationalOptionsExtension>().Any(ext => !string.IsNullOrEmpty(ext.ConnectionString) || ext.Connection != null) &&
+             !optionsBuilder.Options.Extensions.Any(ext => !(ext is RelationalOptionsExtension) && !(ext is CoreOptionsExtension))))
         {
-            if (!optionsBuilder.IsConfigured ||
-                (!optionsBuilder.Options.Extensions.OfType<RelationalOptionsExtension>().Any(ext => !string.IsNullOrEmpty(ext.ConnectionString) || ext.Connection != null) &&
-                 !optionsBuilder.Options.Extensions.Any(ext => !(ext is RelationalOptionsExtension) && !(ext is CoreOptionsExtension))))
-            {
 <#+
     bool appConfig = model.Settings.ConnectionStringInAppConfig && !String.IsNullOrEmpty(model.Settings.AppConnectionStringName);
     string providerInvariantName = model.GetProviderName();
@@ -1628,11 +1562,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (!string.IsNullOrEmpty(methodName) && (appConfig || model.Settings.SaveConnection)) {
       if (appConfig) {
 #>
-                optionsBuilder.<#= methodName #>(GetConnectionString("<#= model.Settings.AppConnectionStringName #>")<#+
+            optionsBuilder.<#= methodName #>(GetConnectionString("<#= model.Settings.AppConnectionStringName #>")<#+
       }
       else {
 #>
-                optionsBuilder.<#= methodName #>(@"<#= ModelUtils.GetQuotedString(model.Connection.GetSavedUsersConnectionString()) #>"<#+
+            optionsBuilder.<#= methodName #>(@"<#= ModelUtils.GetQuotedString(model.Connection.GetSavedUsersConnectionString()) #>"<#+
       }
 
       bool useMicrosoftJson = false;
@@ -1650,7 +1584,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         if (isMultiline) {
 #>
 
-                   <#+
+               <#+
         }
         #> MySqlServerVersion.LatestSupportedServerVersion<#+
       }
@@ -1660,14 +1594,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         if (isMultiline) {
 #>
 
-                   <#+
+               <#+
         }
         #> options => {<#+
         if (useNetTopologySuite) {
           if (isMultiline) {
 #>
 
-                       <#+
+                   <#+
           }
           #> options.UseNetTopologySuite();<#+
         }
@@ -1675,7 +1609,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           if (isMultiline) {
 #>
 
-                       <#+
+                   <#+
           }
           #> options.UseHierarchyId();<#+
         }
@@ -1683,7 +1617,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           if (isMultiline) {
 #>
 
-                       <#+
+                   <#+
           }
           #> options.UseMicrosoftJson();<#+
         }
@@ -1691,14 +1625,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           if (isMultiline) {
 #>
 
-                       <#+
+                   <#+
           }
           #> options.UseNewtonsoftJson();<#+
         }
         if (isMultiline) {
 #>
 
-                   <#+
+               <#+
         }
         #> }<#+
       }
@@ -1707,40 +1641,40 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     }
     if (model.UseLazyLoadingProxies) {
 #>
-                optionsBuilder.UseLazyLoadingProxies();
+            optionsBuilder.UseLazyLoadingProxies();
 <#+
     }
 #>
-            }
-            CustomizeConfiguration(ref optionsBuilder);
-            base.OnConfiguring(optionsBuilder);
         }
+        CustomizeConfiguration(ref optionsBuilder);
+        base.OnConfiguring(optionsBuilder);
+    }
 
 <#+
       if (appConfig) {
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for GetConnectionString method in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for GetConnectionString method in the schema.
+    /// </summary>
 <#+
         }
 #>
-        private static string GetConnectionString(string connectionStringName)
-        {
+    private static string GetConnectionString(string connectionStringName)
+    {
 <#+
       if (model.Settings.TargetFramework.IsNetCore()) {
 #>
-            var configurationBuilder = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+        var configurationBuilder = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
 <#+
       if (!string.IsNullOrEmpty(JsonFileBasePath)) {
         if (JsonFileBasePath == "%CurrentDirectory%") {
 #>
-            configurationBuilder.SetBasePath(System.IO.Directory.GetCurrentDirectory());
+        configurationBuilder.SetBasePath(System.IO.Directory.GetCurrentDirectory());
 <#+
         } else {
 #>
-            configurationBuilder.SetBasePath(@"<#= ModelUtils.GetQuotedString(JsonFileBasePath) #>");
+        configurationBuilder.SetBasePath(@"<#= ModelUtils.GetQuotedString(JsonFileBasePath) #>");
 <#+
         }
       }
@@ -1748,37 +1682,37 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
       if (IncludeEnvironmentVariables) {
 #>
-            configurationBuilder.AddEnvironmentVariables();
+        configurationBuilder.AddEnvironmentVariables();
 <#+
       }
 #>
-            var configuration = configurationBuilder.Build();
-            return configuration.GetConnectionString(connectionStringName);
+        var configuration = configurationBuilder.Build();
+        return configuration.GetConnectionString(connectionStringName);
 <#+
       }
       else {
 #>
-            System.Configuration.ConnectionStringSettings connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[connectionStringName];
-            if (connectionStringSettings == null)
-                throw new InvalidOperationException("Connection string \"" + connectionStringName +"\" could not be found in the configuration file.");
-            return connectionStringSettings.ConnectionString;
+        System.Configuration.ConnectionStringSettings connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[connectionStringName];
+        if (connectionStringSettings == null)
+            throw new InvalidOperationException("Connection string \"" + connectionStringName +"\" could not be found in the configuration file.");
+        return connectionStringSettings.ConnectionString;
 <#+
       }
 #>
-        }
+    }
 
 <#+
       }
 
       if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// Allows you to customize the configuration of model.
-        /// </summary>
+    /// <summary>
+    /// Allows you to customize the configuration of model.
+    /// </summary>
 <#+
       }
 #>
-        partial void CustomizeConfiguration(ref DbContextOptionsBuilder optionsBuilder);
+    partial void CustomizeConfiguration(ref DbContextOptionsBuilder optionsBuilder);
 <#+
   }
 #>
@@ -1802,53 +1736,53 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       if (!string.IsNullOrEmpty(cls.RawSQLQuery) && !cls.QueryType && model.Settings.EntityFrameworkCoreVersion <= EntityFrameworkCoreVersion.Version3) {
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #> property in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #> property in the schema.
+    /// </summary>
 <#+
         }
 #>
 
-        <#= codeProvider.FormatClassAccess(cls.Access) #> <#= overrideModifier #>IQueryable<<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>
+    <#= codeProvider.FormatClassAccess(cls.Access) #> <#= overrideModifier #>IQueryable<<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>
+    {
+        get
         {
-            get
-            {
-                return this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal.FromSql(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>");
-            }
+            return this.<#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal.FromSql(@"<#= codeProvider.GetQuotedString(cls.RawSQLQuery) #>");
         }
+    }
 
 <#+
         if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal property in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal property in the schema.
+    /// </summary>
 <#+
         }
 #>
-        private DbSet<<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal
-        {
-            get;
-            set;
-        }
+    private DbSet<<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>Internal
+    {
+        get;
+        set;
+    }
 <#+
       }
       else
       {
        if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #> property in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.EntitySet) #> property in the schema.
+    /// </summary>
 <#+
         }
         string collectionType = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "DbQuery" : "DbSet";
 #>
-        <#= codeProvider.FormatClassAccess(cls.Access) #> <#= overrideModifier #><#= collectionType #><<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>
-        {
-            get;
-            set;
-        }
+    <#= codeProvider.FormatClassAccess(cls.Access) #> <#= overrideModifier #><#= collectionType #><<#= className #>> <#= codeProvider.GetValidIdentifier(cls.EntitySet) #>
+    {
+        get;
+        set;
+    }
 <#+
       }
     }
@@ -1864,66 +1798,66 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
   private void GenerateClassExtensibilityMethodDefinitions(BaseClass type, string _namespace, bool implementEquals) {
 #>
 
-        #region Extensibility Method Definitions
+    #region Extensibility Method Definitions
 
 <#+
     if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for OnCreated in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for OnCreated in the schema.
+    /// </summary>
 <#+
     }
 #>
-        partial void OnCreated();
+    partial void OnCreated();
 <#+
 
     if (implementEquals) {
 #>
 
-        public override bool Equals(object obj)
-        {
+    public override bool Equals(object obj)
+    {
 <#+
       if (type is Class && ((Class)type).BaseInheritance != null) {
 #>
-          if (!base.Equals(obj))
-          {
-            return false;
-          }
+      if (!base.Equals(obj))
+      {
+        return false;
+      }
 
 <#+
       }
 #>
-          <#= codeProvider.GetValidIdentifier(type.Name) #> toCompare = obj as <#= codeProvider.GetValidIdentifier(type.Name) #>;
-          if (toCompare == null)
-          {
-            return false;
-          }
+      <#= codeProvider.GetValidIdentifier(type.Name) #> toCompare = obj as <#= codeProvider.GetValidIdentifier(type.Name) #>;
+      if (toCompare == null)
+      {
+        return false;
+      }
 
 <#+
       foreach (EntityProperty prop in (type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow).Any() ? type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow) : type.Properties.Where(p => !((EntityProperty)p).Shadow))) { 
 #>
-          if (!Object.Equals(this.<#= codeProvider.GetValidIdentifier(prop.Name) #>, toCompare.<#= codeProvider.GetValidIdentifier(prop.Name) #>))
-            return false;
+      if (!Object.Equals(this.<#= codeProvider.GetValidIdentifier(prop.Name) #>, toCompare.<#= codeProvider.GetValidIdentifier(prop.Name) #>))
+        return false;
 <#+
       }
 #>
 
-          return true;
-        }
+      return true;
+    }
 
-        public override int GetHashCode()
-        {
-          int hashCode = 13;
+    public override int GetHashCode()
+    {
+      int hashCode = 13;
 <#+
       foreach (EntityProperty prop in (type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow).Any() ? type.Properties.Where(p => p.PrimaryKey && !((EntityProperty)p).Shadow) : type.Properties.Where(p => !p.Nullable && !((EntityProperty)p).Shadow))) {
 #>
-          hashCode = (hashCode * 7) + <#= codeProvider.GetValidIdentifier(prop.Name) #>.GetHashCode();
+      hashCode = (hashCode * 7) + <#= codeProvider.GetValidIdentifier(prop.Name) #>.GetHashCode();
 <#+
       }
 #>
-          return hashCode;
-        }
+      return hashCode;
+    }
 <#+
     }
 
@@ -1935,24 +1869,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
           if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for On<#= property.Name #>Changing in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for On<#= property.Name #>Changing in the schema.
+    /// </summary>
 <#+
           }
 #>
-        partial void On<#= property.Name #>Changing(<#= GetPropertyTypeName(property, _namespace, defaultNamespace) #> value);
+    partial void On<#= property.Name #>Changing(<#= GetPropertyTypeName(property, _namespace, defaultNamespace) #> value);
 
 <#+
           if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for On<#= property.Name #>Changed in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for On<#= property.Name #>Changed in the schema.
+    /// </summary>
 <#+
           }
 #>
-        partial void On<#= property.Name #>Changed();
+    partial void On<#= property.Name #>Changed();
 <#+
         }
       }
@@ -1971,31 +1905,31 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
           if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for On<#= property.Name #>Changing in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for On<#= property.Name #>Changing in the schema.
+    /// </summary>
 <#+
           }
 #>
-        partial void On<#= property.Name #>Changing(<#= className #> value);
+    partial void On<#= property.Name #>Changing(<#= className #> value);
 
 <#+
           if (GenerateDummyComments) {
 #>        
-        /// <summary>
-        /// There are no comments for On<#= property.Name #>Changed in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for On<#= property.Name #>Changed in the schema.
+    /// </summary>
 <#+
           }
 #>
-        partial void On<#= property.Name #>Changed();
+    partial void On<#= property.Name #>Changed();
 <#+
         }
       }
     }
 #>
 
-        #endregion
+    #endregion
 <#+
    }
 #>
@@ -2026,14 +1960,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
     if (GenerateDataContracts && !(bool)property.GetProperty("DoNotGenerateDataMemberAttribute")) {
 #>
-        [DataMember(Order=<#= propertyOrder #>)]
+    [DataMember(Order=<#= propertyOrder #>)]
 <#+
     }
 
     foreach (AttributeValue attribute in property.Attributes) {
       output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-        <#= codeProvider.FormatAttributeValue(attribute) #>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
 <#+
     }
 
@@ -2043,7 +1977,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     // Generate DisplayName attribute for property
     if (!string.IsNullOrEmpty(property.DisplayName)) {
 #>
-        [System.ComponentModel.DisplayName("<#= property.DisplayName #>")]
+    [System.ComponentModel.DisplayName("<#= property.DisplayName #>")]
 <#+
     }
 
@@ -2051,7 +1985,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
     // Property code
 #>
-        <#= propertyAccess == "private" ? propertyAccess : propertyAccess + propInheritanceModifier #> <#= propType #> <#= propName #><#+
+    <#= propertyAccess == "private" ? propertyAccess : propertyAccess + propInheritanceModifier #> <#= propType #> <#= propName #><#+
     if (isAutoProperty) {
       #> { <#= getAccess #>get; <#= setAccess #>set; }
 <#+
@@ -2059,53 +1993,53 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     else {
 #>
 
+    {
+        <#= getAccess #>get
         {
-            <#= getAccess #>get
-            {
-                return this._<#= property.Name #>;
-            }
-            <#= setAccess #>set
-            {
+            return this._<#= property.Name #>;
+        }
+        <#= setAccess #>set
+        {
 <#+
       if (supportPropertyChanging || PropertyChangePartialMethods) {
 #>
-                if (this._<#= property.Name #> != value)
-                {
+            if (this._<#= property.Name #> != value)
+            {
 <#+
         if (PropertyChangePartialMethods) {
 #>
-                    this.On<#= property.Name #>Changing(value);
+                this.On<#= property.Name #>Changing(value);
 <#+
         }
         if (supportPropertyChanging) {
 #>
-                    this.SendPropertyChanging("<#= codeProvider.GetValidIdentifier(property.Name) #>");
+                this.SendPropertyChanging("<#= codeProvider.GetValidIdentifier(property.Name) #>");
 <#+
         }
         output.Indent++;
       }
 #>
-                this._<#= property.Name #> = value;
+            this._<#= property.Name #> = value;
 <#+
       if (supportPropertyChanging || PropertyChangePartialMethods) {
         output.Indent--;
         if (supportPropertyChanging) {
 #>
-                    this.SendPropertyChanged("<#= codeProvider.GetValidIdentifier(property.Name) #>");
+                this.SendPropertyChanged("<#= codeProvider.GetValidIdentifier(property.Name) #>");
 <#+
         }
         if (PropertyChangePartialMethods) {
 #>
-                    this.On<#= property.Name #>Changed();
+                this.On<#= property.Name #>Changed();
 <#+
         }
 #>
-                }
+            }
 <#+
       }
 #>
-            }
         }
+    }
 <#+
     }
   }
@@ -2135,20 +2069,20 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
     if (GenerateDataContracts && !(bool)relationProperty.GetProperty("DoNotGenerateDataMemberAttribute")) {
 #>
-        [DataMember(Order=<#= propertyOrder #>, EmitDefaultValue=false)]
+    [DataMember(Order=<#= propertyOrder #>, EmitDefaultValue=false)]
 <#+ }
 
     foreach (AttributeValue attribute in relationProperty.Attributes) {
       output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-        <#= codeProvider.FormatAttributeValue(attribute) #>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
 <#+
     }
 
     // Generate DisplayName attribute for property
     if (!string.IsNullOrEmpty(relationProperty.DisplayName)) {
 #>
-        [System.ComponentModel.DisplayName("<#= relationProperty.DisplayName #>")]
+    [System.ComponentModel.DisplayName("<#= relationProperty.DisplayName #>")]
 <#+
     }
 
@@ -2157,7 +2091,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     // Navigation property code
 #>
 
-        <#= propertyAccess == "private" ? propertyAccess : propertyAccess + propInheritanceModifier #> <#= dataType #> <#= propName #><#+
+    <#= propertyAccess == "private" ? propertyAccess : propertyAccess + propInheritanceModifier #> <#= dataType #> <#= propName #><#+
     if (!supportPropertyChanging && !PropertyChangePartialMethods && !relationProperty.Lazy) {
       #> { <#= getAccess #>get; <#= setAccess #>set; }
 <#+
@@ -2166,64 +2100,64 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     {
 #>
 
+    {
+        <#= getAccess #>get
         {
-            <#= getAccess #>get
-            {
 <#+
         if (relationProperty.Lazy) {
 #>
-                return LazyLoader?.Load(this, ref _<#= relationProperty.Name #>);
+            return LazyLoader?.Load(this, ref _<#= relationProperty.Name #>);
 <#+
         }
         else {
 #>
-                return this._<#= relationProperty.Name #>;
+            return this._<#= relationProperty.Name #>;
 <#+
         }
 #>
-            }
-            <#= setAccess #>set
-            {
+        }
+        <#= setAccess #>set
+        {
 <#+
         if (relationProperty.Multiplicity != Multiplicity.Many && (supportPropertyChanging || PropertyChangePartialMethods)) {
 #>
-                if (this._<#= relationProperty.Name #> != value)
-                {
+            if (this._<#= relationProperty.Name #> != value)
+            {
 <#+
           if (PropertyChangePartialMethods) {
 #>
-                    this.On<#= relationProperty.Name #>Changing(value);
+                this.On<#= relationProperty.Name #>Changing(value);
 <#+
           }
           if (supportPropertyChanging) {
 #>
-                    this.SendPropertyChanging("<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>");
+                this.SendPropertyChanging("<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>");
 <#+
           }
           output.Indent++;
         }
 #>
-                this._<#= relationProperty.Name #> = value;
+            this._<#= relationProperty.Name #> = value;
 <#+
         if (relationProperty.Multiplicity != Multiplicity.Many && (supportPropertyChanging || PropertyChangePartialMethods)) {
           output.Indent--;
           if (supportPropertyChanging) {
 #>
-                    this.SendPropertyChanged("<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>");
+                this.SendPropertyChanged("<#= codeProvider.GetValidIdentifier(relationProperty.Name) #>");
 <#+
           }
           if (PropertyChangePartialMethods) {
 #>
-                    this.On<#= relationProperty.Name #>Changed();
+                this.On<#= relationProperty.Name #>Changed();
 <#+
         }
 #>
-                }
+            }
 <#+
       }
 #>
-            }
         }
+    }
 <#+
     }
   }
@@ -2240,34 +2174,34 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (!GenerateDummyComments && string.IsNullOrEmpty(doc.Summary) && string.IsNullOrEmpty(doc.LongDescription))
       return;
 #>
-    /// <summary>
+/// <summary>
 <#+
     if (!string.IsNullOrEmpty(doc.Summary)) {
       foreach (string str in doc.Summary.Split('\n')) {
 #>
-    /// <#= System.Security.SecurityElement.Escape(str.TrimEnd('\r')) #>
+/// <#= System.Security.SecurityElement.Escape(str.TrimEnd('\r')) #>
 <#+
       }
     }
     else {
 #>
-    /// There are no comments for <#= name #> in the schema.
+/// There are no comments for <#= name #> in the schema.
 <#+
     }
 #>
-    /// </summary>
+/// </summary>
 <#+
     if (!string.IsNullOrEmpty(doc.LongDescription)) {
 #>
-    /// <remark>
+/// <remark>
 <#+
       foreach (string str in doc.LongDescription.Split('\n')) {
 #>
-    /// <#= System.Security.SecurityElement.Escape(str.TrimEnd('\r')) #>
+/// <#= System.Security.SecurityElement.Escape(str.TrimEnd('\r')) #>
 <#+
       }
 #>
-    /// </remark>
+/// </remark>
 <#+
     }
   }
@@ -2282,19 +2216,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
   private void GenerateICloneable(BaseClass baseClass, string parentNamespace, string defaultNamespace) {
 #>
 
-        #region ICloneable Members
+    #region ICloneable Members
 
 <#+
     if (baseClass is Class && ((Class)baseClass).InheritanceModifier == ClassInheritanceModifier.Abstract) {
 #>
-        public abstract object Clone();
+    public abstract object Clone();
 <#+
     }
     else {
 #>
-        public <#+ if (baseClass is Class && ((Class)baseClass).BaseInheritance != null) { #>override<#+ } else { #>virtual<#+ } #> object Clone()
-        {
-            <#= codeProvider.GetValidIdentifier(baseClass.Name) #> obj = new <#= codeProvider.GetValidIdentifier(baseClass.Name) #>();
+    public <#+ if (baseClass is Class && ((Class)baseClass).BaseInheritance != null) { #>override<#+ } else { #>virtual<#+ } #> object Clone()
+    {
+        <#= codeProvider.GetValidIdentifier(baseClass.Name) #> obj = new <#= codeProvider.GetValidIdentifier(baseClass.Name) #>();
 <#+
       List<Property> properties = new List<Property>();
       if (baseClass is Class)
@@ -2308,23 +2242,23 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           if (nspace != parentNamespace)
             propertyDataType = nspace + "." + propertyDataType;
 #>
-            obj.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyDataType #>)<#= codeProvider.GetValidIdentifier(prop.Name) #>.Clone();
+        obj.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyDataType #>)<#= codeProvider.GetValidIdentifier(prop.Name) #>.Clone();
 <#+
         }
         else {
 #>
-            obj.<#= codeProvider.GetValidIdentifier(prop.Name) #> = <#= codeProvider.GetValidIdentifier(prop.Name) #>;
+        obj.<#= codeProvider.GetValidIdentifier(prop.Name) #> = <#= codeProvider.GetValidIdentifier(prop.Name) #>;
 <#+
         }
       }
 #>
-            return obj;
-        }
+        return obj;
+    }
 <#+
     }
 #>
 
-        #endregion
+    #endregion
 <#+
   }
 #>
@@ -2340,7 +2274,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (model.Methods.Count > 0) {
 #>
 
-        #region Methods
+    #region Methods
 <#+
     }
 
@@ -2356,7 +2290,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (model.Methods.Count > 0) {
 #>
 
-        #endregion
+    #endregion
 <#+
     }
   }
@@ -2431,24 +2365,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     foreach (AttributeValue attribute in method.Attributes) {
       output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-        <#= codeProvider.FormatAttributeValue(attribute) #>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
 <#+
     }
 #>
-        <#= methodAccess #><#+ if (isAsync) { #> async<#+ } #><#= inheritanceModifier #> <#= !isAsync ? returnType : (returnType == "void" ? "Task" : string.Format("Task<{0}>", returnType)) #> <#= method.Name #><#+ if (isAsync) { #>Async<#+ } #> (<#= codeProvider.Join(", ", methodParameters.ToArray()) #>)
-        {
+    <#= methodAccess #><#+ if (isAsync) { #> async<#+ } #><#= inheritanceModifier #> <#= !isAsync ? returnType : (returnType == "void" ? "Task" : string.Format("Task<{0}>", returnType)) #> <#= method.Name #><#+ if (isAsync) { #>Async<#+ } #> (<#= codeProvider.Join(", ", methodParameters.ToArray()) #>)
+    {
 
 <#+
     if (method.MethodType != MethodType.Procedure) {
 #>
-            <#= resultType #> result<#+ if (method.MethodType != MethodType.ScalarResult) { #> = new <#= resultType #>()<#+ } #>;
+        <#= resultType #> result<#+ if (method.MethodType != MethodType.ScalarResult) { #> = new <#= resultType #>()<#+ } #>;
 <#+
     }
     if (isAsync) {
       foreach (var param in returnTuple) {
         if (param.Key.Direction == ParameterDirection.Output) {
 #>
-            <#= param.Value #> <#= codeProvider.GetValidIdentifier(param.Key.Name) #>;
+        <#= param.Value #> <#= codeProvider.GetValidIdentifier(param.Key.Name) #>;
 <#+
         }
       }
@@ -2461,40 +2395,40 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     string cmdVar = NamesValidator.GetValidName("cmd", names);
     string readerVar = NamesValidator.GetValidName("reader", names);
 #>
-            DbConnection <#= connectionVar #> = this.Database.GetDbConnection();
-            bool <#= needCloseVar #> = false;
-            if (<#= connectionVar #>.State != ConnectionState.Open)
-            {
+        DbConnection <#= connectionVar #> = this.Database.GetDbConnection();
+        bool <#= needCloseVar #> = false;
+        if (<#= connectionVar #>.State != ConnectionState.Open)
+        {
 <#+
     if (isAsync) {
 #>
-                await <#= connectionVar #>.OpenAsync();
+            await <#= connectionVar #>.OpenAsync();
 <#+
     } else {
 #>
-                <#= connectionVar #>.Open();
+            <#= connectionVar #>.Open();
 <#+
     }
 #>
-                <#= needCloseVar #> = true;
-            }
+            <#= needCloseVar #> = true;
+        }
 
-            try
+        try
+        {
+            using (DbCommand <#= cmdVar #> = <#= connectionVar #>.CreateCommand())
             {
-                using (DbCommand <#= cmdVar #> = <#= connectionVar #>.CreateCommand())
-                {
-                    if (this.Database.GetCommandTimeout().HasValue)
-                        <#= cmdVar #>.CommandTimeout = this.Database.GetCommandTimeout().Value;
+                if (this.Database.GetCommandTimeout().HasValue)
+                    <#= cmdVar #>.CommandTimeout = this.Database.GetCommandTimeout().Value;
 <#+
     if (!string.IsNullOrEmpty(method.Procedure) && !method.TableValuedFunction) {
 #>
-                    <#= cmdVar #>.CommandType = CommandType.StoredProcedure;
-                    <#= cmdVar #>.CommandText = @"<#= codeProvider.GetQuotedString(method.Procedure) #>";
+                <#= cmdVar #>.CommandType = CommandType.StoredProcedure;
+                <#= cmdVar #>.CommandText = @"<#= codeProvider.GetQuotedString(method.Procedure) #>";
 <#+
     } else {
 #>
-                    <#= cmdVar #>.CommandType = CommandType.Text;
-                    <#= cmdVar #>.CommandText = @"<#= codeProvider.GetQuotedString(method.SQL) #>";
+                <#= cmdVar #>.CommandType = CommandType.Text;
+                <#= cmdVar #>.CommandText = @"<#= codeProvider.GetQuotedString(method.SQL) #>";
 <#+
     }
 
@@ -2509,23 +2443,23 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         dbType = vendor.GetParameterType(dbType, parameter.ServerType);
 #>
 
-                    DbParameter <#= parameterVar #> = <#= cmdVar #>.CreateParameter();
-                    <#= parameterVar #>.ParameterName = "<#= parameterName #>";
-                    <#= parameterVar #>.Direction = ParameterDirection.<#= parameter.Direction.ToString() #>;
-                    <#= parameterVar #>.DbType = DbType.<#= dbType #>;
+                DbParameter <#= parameterVar #> = <#= cmdVar #>.CreateParameter();
+                <#= parameterVar #>.ParameterName = "<#= parameterName #>";
+                <#= parameterVar #>.Direction = ParameterDirection.<#= parameter.Direction.ToString() #>;
+                <#= parameterVar #>.DbType = DbType.<#= dbType #>;
 <#+
       if (parameter.MaxLength > 0) {
 #>
-                    <#= parameterVar #>.Size = <#= parameter.MaxLength.ToString() #>;
+                <#= parameterVar #>.Size = <#= parameter.MaxLength.ToString() #>;
 <#+
       }
       if (parameter.Precision > 0) {
 #>
-                    <#= parameterVar #>.Precision = <#= parameter.Precision.ToString() #>;
+                <#= parameterVar #>.Precision = <#= parameter.Precision.ToString() #>;
 <#+
         if (parameter.Scale >= 0) {
 #>
-                    <#= parameterVar #>.Scale = <#= parameter.Scale.ToString() #>;
+                <#= parameterVar #>.Scale = <#= parameter.Scale.ToString() #>;
 <#+
         }
       }
@@ -2533,23 +2467,23 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       if (parameter.Direction != ParameterDirection.Output) {
         if (!parameter.IsEnumType && ((EntityDataType)parameter.Type).ToNetType().IsValueType) {
 #>
-                    if (<#= parameterName #>.HasValue)
-                    {
-                        <#= parameterVar #>.Value = <#= parameterName #>.Value;
-                    }
+                if (<#= parameterName #>.HasValue)
+                {
+                    <#= parameterVar #>.Value = <#= parameterName #>.Value;
+                }
 <#+
         }
         else {
 #>
-                    if (<#= parameterName #> != null)
-                    {
-                        <#= parameterVar #>.Value = <#= parameterName #>;
-                    }
+                if (<#= parameterName #> != null)
+                {
+                    <#= parameterVar #>.Value = <#= parameterName #>;
+                }
 <#+
         }
 #>
-                    else
-                    {
+                else
+                {
 <#+
       }
 #>
@@ -2557,19 +2491,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       string providerInvariantName = model.GetProviderName();
       if (parameter.MaxLength <= 0 && providerInvariantName != ProvidersManager.OracleDPManagedInvariantName && providerInvariantName != ProvidersManager.OracleDPInvariantName) {
 #>
-                    <#+ if (parameter.Direction != ParameterDirection.Output) { #>    <#+ } #><#= parameterVar #>.Size = -1;
+                <#+ if (parameter.Direction != ParameterDirection.Output) { #>    <#+ } #><#= parameterVar #>.Size = -1;
 <#+
       }
 #>
-                    <#+ if (parameter.Direction != ParameterDirection.Output) { #>    <#+ } #><#= parameterVar #>.Value = DBNull.Value;
+                <#+ if (parameter.Direction != ParameterDirection.Output) { #>    <#+ } #><#= parameterVar #>.Value = DBNull.Value;
 <#+
       if (parameter.Direction != ParameterDirection.Output) {
 #>
-                    }
+                }
 <#+
       }
 #>
-                    <#= cmdVar #>.Parameters.Add(<#= parameterVar #>);
+                <#= cmdVar #>.Parameters.Add(<#= parameterVar #>);
 <#+
     }
 
@@ -2581,26 +2515,26 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
         if (isAsync) {
 #>
-                    using (IDataReader <#= readerVar #> = await <#= cmdVar #>.ExecuteReaderAsync())
+                using (IDataReader <#= readerVar #> = await <#= cmdVar #>.ExecuteReaderAsync())
 <#+
         } else {
 #>
-                    using (IDataReader <#= readerVar #> = <#= cmdVar #>.ExecuteReader())
+                using (IDataReader <#= readerVar #> = <#= cmdVar #>.ExecuteReader())
 <#+
         }
 #>
+                {
+                    var fieldNames = Enumerable.Range(0, <#= readerVar #>.FieldCount).Select(i => <#= readerVar #>.GetName(i)).ToArray();
+                    while (<#= readerVar #>.Read())
                     {
-                        var fieldNames = Enumerable.Range(0, <#= readerVar #>.FieldCount).Select(i => <#= readerVar #>.GetName(i)).ToArray();
-                        while (<#= readerVar #>.Read())
-                        {
-                            <#= GetCodeElementReference(type, contextNamespace) #> row = new <#= GetCodeElementReference(type, contextNamespace) #>();
+                        <#= GetCodeElementReference(type, contextNamespace) #> row = new <#= GetCodeElementReference(type, contextNamespace) #>();
 <#+
         foreach (EntityProperty prop in type.Properties)
           GenerateMethodPropertyRead(method, prop, "", new PropertyMappingKey(null), contextNamespace, serverInfo, readerVar);
 #>
-                            result.Add(row);
-                        }
+                        result.Add(row);
                     }
+                }
 <#+
         break;
       case MethodType.Procedure:
@@ -2608,11 +2542,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
         if (isAsync) {
 #>
-                    await <#= cmdVar #>.ExecuteNonQueryAsync();
+                await <#= cmdVar #>.ExecuteNonQueryAsync();
 <#+
         } else {
 #>
-                    <#= cmdVar #>.ExecuteNonQuery();
+                <#= cmdVar #>.ExecuteNonQuery();
 <#+
         }
 #>
@@ -2623,33 +2557,33 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         string nonNullableResultType = codeProvider.GetNullableType(false, method.ReturnType);
 #>
 
-                    DbParameter returnValueParameter = <#= cmdVar #>.CreateParameter();
-                    returnValueParameter.Direction = ParameterDirection.ReturnValue;
-                    returnValueParameter.DbType = DbType.<#= retType.ToDbType() #>;
+                DbParameter returnValueParameter = <#= cmdVar #>.CreateParameter();
+                returnValueParameter.Direction = ParameterDirection.ReturnValue;
+                returnValueParameter.DbType = DbType.<#= retType.ToDbType() #>;
 <#+
       string providerInvariantName = model.GetProviderName();
       if (providerInvariantName != ProvidersManager.OracleDPManagedInvariantName && providerInvariantName != ProvidersManager.OracleDPInvariantName) {
 #>
-                    returnValueParameter.Size = -1;
+                returnValueParameter.Size = -1;
 <#+
       }
 #>
-                    <#= cmdVar #>.Parameters.Add(returnValueParameter);
+                <#= cmdVar #>.Parameters.Add(returnValueParameter);
 <#+
         if (isAsync) {
 #>
-                    await <#= cmdVar #>.ExecuteNonQueryAsync();
+                await <#= cmdVar #>.ExecuteNonQueryAsync();
 <#+
         } else {
 #>
-                    <#= cmdVar #>.ExecuteNonQuery();
+                <#= cmdVar #>.ExecuteNonQuery();
 <#+
         }
 #>
-                    if (returnValueParameter.Value != null && !(returnValueParameter.Value is System.DBNull))
-                        result = (<#= nonNullableResultType #>)Convert.ChangeType(returnValueParameter.Value, typeof(<#= nonNullableResultType #>));
-                    else
-                        result = default(<#= resultType #>);
+                if (returnValueParameter.Value != null && !(returnValueParameter.Value is System.DBNull))
+                    result = (<#= nonNullableResultType #>)Convert.ChangeType(returnValueParameter.Value, typeof(<#= nonNullableResultType #>));
+                else
+                    result = default(<#= resultType #>);
 <#+
 
         break;
@@ -2658,25 +2592,25 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
         if (isAsync) {
 #>
-                    using (IDataReader <#= readerVar #> = await <#= cmdVar #>.ExecuteReaderAsync())
+                using (IDataReader <#= readerVar #> = await <#= cmdVar #>.ExecuteReaderAsync())
 <#+
         } else {
 #>
-                    using (IDataReader <#= readerVar #> = <#= cmdVar #>.ExecuteReader())
+                using (IDataReader <#= readerVar #> = <#= cmdVar #>.ExecuteReader())
 <#+
         }
 #>
-                    {
-                        string[] fieldNames;
+                {
+                    string[] fieldNames;
 <#+
         foreach (BaseClass res in (IList)method.ReturnType) {
 #>
-                        fieldNames = Enumerable.Range(0, <#= readerVar #>.FieldCount).Select(i => <#= readerVar #>.GetName(i)).ToArray();
+                    fieldNames = Enumerable.Range(0, <#= readerVar #>.FieldCount).Select(i => <#= readerVar #>.GetName(i)).ToArray();
 
-                        while (<#= readerVar #>.Read())
-                        {
+                    while (<#= readerVar #>.Read())
+                    {
 
-                            <#= GetCodeElementReference(res, contextNamespace) #> resultRow = new <#= GetCodeElementReference(res, contextNamespace) #>();
+                        <#= GetCodeElementReference(res, contextNamespace) #> resultRow = new <#= GetCodeElementReference(res, contextNamespace) #>();
 <#+
           foreach (EntityProperty prop in res.Properties) {
             if (!prop.IsComplexType) {
@@ -2686,33 +2620,33 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
                 columnName = serverInfo.UnQuoteName(columnName);
               if (res.Properties.Count(p => !p.IsComplexType) == 1) {
 #>
-                            if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
-                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= propertyType #>));
-                            else
+                        if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
+                            resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= propertyType #>));
+                        else
 <#+
               }
               if (!string.IsNullOrEmpty(columnName)) {
 #>
-                            if (fieldNames.Contains(@"<#= codeProvider.GetQuotedString(columnName) #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
-                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= propertyType #>));
+                        if (fieldNames.Contains(@"<#= codeProvider.GetQuotedString(columnName) #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
+                            resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= propertyType #>));
 <#+
                 if (prop.Nullable) {
 #>
-                            else
-                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = null;
+                        else
+                            resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = null;
 <#+             }
               }
             }
           }
 #>
-                            result.<#= codeProvider.GetPluralString(codeProvider.GetValidIdentifier(res.Name)) #>.Add(resultRow);
-                        }
-                        <#= readerVar #>.NextResult();
+                        result.<#= codeProvider.GetPluralString(codeProvider.GetValidIdentifier(res.Name)) #>.Add(resultRow);
+                    }
+                    <#= readerVar #>.NextResult();
 
 <#+
         }
 #>
-                    }
+                }
 
 <#+
         break;
@@ -2724,41 +2658,41 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         string typeName = GetTypeName(argument.Type, contextNamespace, defaultNamespace, false);
 #>
 
-                    if (<#= cmdVar #>.Parameters["<#= argumentName #>"].Value != null && !(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value is System.DBNull))
-                        <#= argumentName #> = (<#= typeName #>)Convert.ChangeType(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value, typeof(<#= typeName #>));
-                    else
-                        <#= argumentName #> = default(<#= typeName #>);
+                if (<#= cmdVar #>.Parameters["<#= argumentName #>"].Value != null && !(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value is System.DBNull))
+                    <#= argumentName #> = (<#= typeName #>)Convert.ChangeType(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value, typeof(<#= typeName #>));
+                else
+                    <#= argumentName #> = default(<#= typeName #>);
 <#+
       }
     }
 #>
-                }
             }
-            finally
-            {
-                if (<#= needCloseVar #>)
-                    <#= connectionVar #>.Close();
-            }
+        }
+        finally
+        {
+            if (<#= needCloseVar #>)
+                <#= connectionVar #>.Close();
+        }
 <#+
     if (isAsync && returnTuple.Count > 0) {
       if (method.MethodType != MethodType.Procedure) {
 #>
-            return new <#= returnType #>(<#= codeProvider.Join(", ", returnTuple.Keys.Select(p=> codeProvider.GetValidIdentifier(p.Name)).ToArray()) #>, result);
+        return new <#= returnType #>(<#= codeProvider.Join(", ", returnTuple.Keys.Select(p=> codeProvider.GetValidIdentifier(p.Name)).ToArray()) #>, result);
 <#+
       }
       else {
 #>
-            return new <#= returnType #>(<#= codeProvider.Join(", ", returnTuple.Keys.Select(p=> codeProvider.GetValidIdentifier(p.Name)).ToArray()) #>);
+        return new <#= returnType #>(<#= codeProvider.Join(", ", returnTuple.Keys.Select(p=> codeProvider.GetValidIdentifier(p.Name)).ToArray()) #>);
 <#+
       }
     }
     else if (method.MethodType != MethodType.Procedure) {
 #>
-            return result;
+        return result;
 <#+
     }
 #>
-        }
+    }
 <#+
   }
 #>
@@ -2815,24 +2749,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       foreach (AttributeValue attribute in method.Attributes) {
         output.AddReference(attribute.Constructor.AttributeType.Assembly.FromGAC ? attribute.Constructor.AttributeType.Assembly.Name : attribute.Constructor.AttributeType.Assembly.Path);
 #>
-        <#= codeProvider.FormatAttributeValue(attribute) #>
+    <#= codeProvider.FormatAttributeValue(attribute) #>
 <#+
       }
       int separatorIndex = method.Procedure.IndexOf(".");
       if (separatorIndex > 0) {
 #>
-        [DbFunction(@"<#= method.Procedure.Substring(separatorIndex + 1) #>", @"<#= method.Procedure.Substring(0, separatorIndex) #>")]
+    [DbFunction(@"<#= method.Procedure.Substring(separatorIndex + 1) #>", @"<#= method.Procedure.Substring(0, separatorIndex) #>")]
 <#+
       } else {
 #>
-        [DbFunction(@"<#= method.Procedure #>")]
+    [DbFunction(@"<#= method.Procedure #>")]
 <#+
       }
 #>
-        <#= methodAccess #> static <#= returnType #> <#= method.Name #> (<#= codeProvider.Join(", ", lst.ToArray()) #>)
-        {
-            throw new NotSupportedException("Direct calls are not supported.");
-        }
+    <#= methodAccess #> static <#= returnType #> <#= method.Name #> (<#= codeProvider.Join(", ", lst.ToArray()) #>)
+    {
+        throw new NotSupportedException("Direct calls are not supported.");
+    }
 <#+
     }
   }
@@ -2864,19 +2798,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
       if (prop.ParentClass.Properties.Count(p => !p.IsComplexType) == 1) {
 #>
-                            if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
-                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= actualColumnType #>));
-                            else
+                        if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
+                            row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= actualColumnType #>));
+                        else
 <#+
       }
 #>
-                            if (fieldNames.Contains("<#= columnName #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
-                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= actualColumnType #>));
+                        if (fieldNames.Contains("<#= columnName #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
+                            row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= actualColumnType #>));
 <#+
       if (prop.Nullable) {
 #>
-                            else
-                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = null;
+                        else
+                            row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = null;
 <#+   }
 #>
 
@@ -2886,7 +2820,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       ComplexType type = (ComplexType)prop.Type;
 
 #>
-                            row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = new <#= GetCodeElementReference(type, contextNamespace) #>();
+                        row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = new <#= GetCodeElementReference(type, contextNamespace) #>();
 <#+
       // generate properties mapping
       foreach (EntityProperty p in type.Properties)
@@ -2903,36 +2837,36 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
   private void GenerateFluentClassMapping(EntityClass cls, string contextNamespace, ServerInfoBase serverInfo) {
 #>
 
-        #region <#= codeProvider.GetValidIdentifier(cls.Name) #> Mapping
+    #region <#= codeProvider.GetValidIdentifier(cls.Name) #> Mapping
 
 <#+
     if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for <#= cls.Name #>Mapping in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for <#= cls.Name #>Mapping in the schema.
+    /// </summary>
 <#+
     }
 #>
-        private void <#= cls.Name #>Mapping(ModelBuilder modelBuilder)
-        {
+    private void <#= cls.Name #>Mapping(ModelBuilder modelBuilder)
+    {
 <#+
     GenerateClassMapping(cls, contextNamespace, serverInfo);
 #>
-        }
+    }
 
 <#+
     if (GenerateDummyComments) {
 #>
-        /// <summary>
-        /// There are no comments for Customize<#= cls.Name #>Mapping in the schema.
-        /// </summary>
+    /// <summary>
+    /// There are no comments for Customize<#= cls.Name #>Mapping in the schema.
+    /// </summary>
 <#+
     }
 #>
-        partial void Customize<#= cls.Name #>Mapping(ModelBuilder modelBuilder);
+    partial void Customize<#= cls.Name #>Mapping(ModelBuilder modelBuilder);
 
-        #endregion
+    #endregion
 <#+
   }
 #>
@@ -2953,12 +2887,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         if (relationProperty.Multiplicity == Multiplicity.Many) {
           if (oppositeRelationProperty.Multiplicity != Multiplicity.Many) { // One-To-Many or ZeroOrOne-To-Many
 #>
-            builder.<#+ GenerateCollectionRelationPropertyMapping(relationProperty, serverInfo); #>;
+        builder.<#+ GenerateCollectionRelationPropertyMapping(relationProperty, serverInfo); #>;
 <#+
           }
           else { // Many-To-Many
 #>
-            builder.<#+ GenerateManyToManyRelationPropertyMapping(relationProperty, serverInfo); #>;
+        builder.<#+ GenerateManyToManyRelationPropertyMapping(relationProperty, serverInfo); #>;
 <#+
           }
         }
@@ -2967,7 +2901,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
               oppositeRelationProperty.Multiplicity == Multiplicity.One || // One-To-One
               oppositeRelationProperty.Multiplicity == Multiplicity.Many) { // One-To-Many
 #>
-            builder.<#+ GenerateHasOneRelationPropertyMapping(relationProperty); #>;
+        builder.<#+ GenerateHasOneRelationPropertyMapping(relationProperty); #>;
 <#+
           }
         }
@@ -3200,12 +3134,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
     if (SelfContainedEntityConfiguration) {
 #>
-            builder<#+
+        builder<#+
     }
     else {
       string rootMethod = cls.QueryType && model.Settings.EntityFrameworkCoreVersion == EntityFrameworkCoreVersion.Version2 ? "Query" : "Entity";
 #>
-            modelBuilder.<#= rootMethod #><<#= GetCodeElementReference(cls, contextNamespace) #>>()<#+
+        modelBuilder.<#= rootMethod #><<#= GetCodeElementReference(cls, contextNamespace) #>>()<#+
     }
   }
 #>
@@ -3338,7 +3272,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     foreach (EntityProperty p in complexType.Properties) {
       if (!((bool)p.GetProperty("DoNotGenerateMapping"))) {
         if (!p.IsComplexType) { #>
-            <#= prefix #><#+ GeneratePropertyMap(p, key, serverInfo); #>;
+        <#= prefix #><#+ GeneratePropertyMap(p, key, serverInfo); #>;
 <#+
         }
         else {
@@ -3421,17 +3355,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (!string.IsNullOrEmpty(association.JoinTable)) {
 #>
 
-                .UsingEntity<Dictionary<string, object>>(
-                    @"<#= codeProvider.GetQuotedString(association.JoinTable) #>",
-                    x => x.<#+
+            .UsingEntity<Dictionary<string, object>>(
+                @"<#= codeProvider.GetQuotedString(association.JoinTable) #>",
+                x => x.<#+
       GenerateHasOneForManyToManyRelationPropertyMapping(relationProperty);
 #>,
-                    x => x.<#+
+                x => x.<#+
       GenerateHasOneForManyToManyRelationPropertyMapping(oppositeRelationProperty);
 #>
 
-                )
-                .ToTable(@"<#= codeProvider.GetQuotedString(association.JoinTable) #>"<#+ if (!string.IsNullOrEmpty(association.JoinTableSchema)) { #>, @"<#= codeProvider.GetQuotedString(association.JoinTableSchema) #>"<#+ } #>)<#+
+            )
+            .ToTable(@"<#= codeProvider.GetQuotedString(association.JoinTable) #>"<#+ if (!string.IsNullOrEmpty(association.JoinTableSchema)) { #>, @"<#= codeProvider.GetQuotedString(association.JoinTableSchema) #>"<#+ } #>)<#+
     }
   }
 #>
@@ -3477,7 +3411,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if (string.IsNullOrEmpty(uniqueKeys.Key)) {
       foreach (EntityProperty uk in uniqueKeys) {
 #>
-            <#= prefix #>HasIndex(@"<#= uk.Name #>").IsUnique(true);
+        <#= prefix #>HasIndex(@"<#= uk.Name #>").IsUnique(true);
 <#+
       }
     }
@@ -3485,12 +3419,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       string ukFields = string.Join(", ", uniqueKeys.Select(p => "@\"" + p.Name + "\"").ToArray());
       if (model.Settings.EntityFrameworkCoreVersion >= EntityFrameworkCoreVersion.Version5) {
         #>
-            <#= prefix #>HasIndex(<#= ukFields #>).IsUnique(true).HasDatabaseName(@"<#= codeProvider.GetQuotedString(uniqueKeys.Key) #>");
+        <#= prefix #>HasIndex(<#= ukFields #>).IsUnique(true).HasDatabaseName(@"<#= codeProvider.GetQuotedString(uniqueKeys.Key) #>");
 <#+
       }
       else {
         #>
-            <#= prefix #>HasIndex(<#= ukFields #>).IsUnique(true).HasName(@"<#= codeProvider.GetQuotedString(uniqueKeys.Key) #>");
+        <#= prefix #>HasIndex(<#= ukFields #>).IsUnique(true).HasName(@"<#= codeProvider.GetQuotedString(uniqueKeys.Key) #>");
 <#+
       }
     }
@@ -3603,13 +3537,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if ((SerializationLibrary == SerializationLibrary.DataContract && !((bool)cls.GetProperty("DoNotSerialize"))) ||
         (GenerateDataContracts && !((bool)cls.GetProperty("DoNotGenerateDataContractAttribute")))) {
 #>
-    [DataContract(IsReference=true)]
+[DataContract(IsReference=true)]
 <#+
     }
 
     if (GenerateSerializableAttributes && !((bool)cls.GetProperty("DoNotGenerateSerializableAttribute"))) {
 #>
-    [Serializable()]
+[Serializable()]
 <#+
     }
   }
@@ -3626,7 +3560,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     if ((SerializationLibrary == SerializationLibrary.DataContract && !((bool)enumType.GetProperty("DoNotSerialize"))) ||
         (GenerateDataContracts && !((bool)enumType.GetProperty("DoNotGenerateDataContractAttribute")))) {
 #>
-    [DataContract]
+[DataContract]
 <#+
     }
   }
@@ -3645,12 +3579,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       if (doNotSerialize) {
         if (SerializationLibrary == SerializationLibrary.NewtonsoftJson || SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-        [JsonIgnore]
+    [JsonIgnore]
 <#+
         }
         else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
 #>
-        [YamlIgnore]
+    [YamlIgnore]
 <#+
         }
       }
@@ -3662,7 +3596,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           propertyAttributeStarted = true;
           withoutArguments = true;
 #>
-        [DataMember<#+
+    [DataMember<#+
         }
 
         string serializationName = (string)property.GetProperty("SerializationName");
@@ -3687,7 +3621,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
             }
             else {
 #>
-        [DataMember(<#+
+    [DataMember(<#+
               propertyAttributeStarted = true;
             }
             #>Name = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
@@ -3695,17 +3629,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           else if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
             propertyAttributeStarted = true;
 #>
-        [JsonProperty(@"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
+    [JsonProperty(@"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
           }
           else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-        [JsonPropertyName(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
+    [JsonPropertyName(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
 <#+
           }
           else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
             propertyAttributeStarted = true;
 #>
-        [YamlMember(Alias = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
+    [YamlMember(Alias = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
           }
         }
 
@@ -3717,14 +3651,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
               }
               else {
 #>
-        [JsonProperty(<#+
+    [JsonProperty(<#+
                 propertyAttributeStarted = true;
               }
               #>NullValueHandling = NullValueHandling.Ignore<#+
             }
             else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
 <#+
             }
             else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
@@ -3733,7 +3667,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
               }
               else {
 #>
-        [YamlMember(<#+
+    [YamlMember(<#+
                 propertyAttributeStarted = true;
               }
               #>DefaultValuesHandling = DefaultValuesHandling.OmitNull<#+
@@ -3777,12 +3711,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       if (doNotSerialize) {
         if (SerializationLibrary == SerializationLibrary.NewtonsoftJson || SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-        [JsonIgnore]
+    [JsonIgnore]
 <#+
         }
         else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
 #>
-        [YamlIgnore]
+    [YamlIgnore]
 <#+
         }
       }
@@ -3794,7 +3728,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
           propertyAttributeStarted = true;
           withoutArguments = true;
 #>
-        [DataMember<#+
+    [DataMember<#+
         }
 
         string serializationName = (string)relationProperty.GetProperty("SerializationName");
@@ -3806,24 +3740,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
             }
             else {
 #>
-        [DataMember(<#+
+    [DataMember(<#+
               propertyAttributeStarted = true;
             }
             #>Name = @"<#= codeProvider.GetQuotedString(serializationName) #>"<#+
           }
           else if (SerializationLibrary == SerializationLibrary.NewtonsoftJson) {
 #>
-        [JsonProperty(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
+    [JsonProperty(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
 <#+
           }
           else if (SerializationLibrary == SerializationLibrary.SystemTextJson) {
 #>
-        [JsonPropertyName(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
+    [JsonPropertyName(@"<#= codeProvider.GetQuotedString(serializationName) #>")]
 <#+
           }
           else if (SerializationLibrary == SerializationLibrary.YamlDotNet) {
 #>
-        [YamlMember(Alias = @"<#= codeProvider.GetQuotedString(serializationName) #>")]
+    [YamlMember(Alias = @"<#= codeProvider.GetQuotedString(serializationName) #>")]
 <#+
           }
         }
@@ -4138,24 +4072,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
     var keyType = GetPropertyTypeName(pkProperty, _namespace, "System");
 #>
 
-        /// <summary>
-        /// Represents well-known identifiers.
-        /// </summary>
-        public static class Ids
-        {
+    /// <summary>
+    /// Represents well-known identifiers.
+    /// </summary>
+    public static class Ids
+    {
 <#+
         var ids = wellknownIdentifiers.Split(',').ToDictionary(id => id.Split('=')[0], id => id.Split('=')[1]).OrderBy(id => id.Key);
         foreach (var id in ids)
         {
 #>
-            /// <summary>
-            /// Gets the <#= id.Key #> Id.
-            /// </summary>
-            public static <#= keyType #> <#= id.Key #> { get; } = <#= keyType #>.Parse("<#= id.Value #>");
+        /// <summary>
+        /// Gets the <#= id.Key #> Id.
+        /// </summary>
+        public static <#= keyType #> <#= id.Key #> { get; } = <#= keyType #>.Parse("<#= id.Value #>");
 <#+
         }
 #>
-        }
+    }
 <#+
   }
 #>
