@@ -47,6 +47,7 @@ public interface IUnitOfWork
     /// <summary>
     /// Cancels the changes.
     /// </summary>
+    [Obsolete("EF Core change tracking does not support undo; kept for backwards compatibility.")]
     public void CancelChanges();
 
     /// <summary>

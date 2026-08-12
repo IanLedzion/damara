@@ -85,6 +85,7 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     /// <summary>
     /// Cancels the changes.
     /// </summary>
+    [Obsolete("EF Core change tracking does not support undo; kept for backwards compatibility.")]
     public void CancelChanges()
     {
         this.beforeCancelChanges?.Raise(this, new BeforeCancelChangesArgs());
@@ -200,6 +201,7 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     /// <summary>
     /// Core cancel changes method.
     /// </summary>
+    [Obsolete("EF Core change tracking does not support undo; kept for backwards compatibility.")]
     protected abstract void CancelChangesCore();
 
     /// <summary>
