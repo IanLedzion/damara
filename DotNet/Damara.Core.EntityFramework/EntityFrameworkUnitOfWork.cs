@@ -120,6 +120,7 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
     /// <summary>
     /// Cancels the changes.
     /// </summary>
+    [Obsolete("EF Core change tracking does not support undo; kept for backwards compatibility.")]
     protected override void CancelChangesCore()
     {
         Log.Verbose("Unit of work {UnitOfWorkType} cancelling changes", this.GetType().Name);

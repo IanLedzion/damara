@@ -2,6 +2,8 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
+using System;
+
 namespace Damara.Core.Tests.ObjectInstances;
 
 /// <summary>
@@ -18,6 +20,7 @@ public class MockUnitOfWork : UnitOfWorkBase
 
     protected override bool HasChangesCore => throw new System.NotImplementedException();
 
+    [Obsolete("EF Core change tracking does not support undo; kept for backwards compatibility.")]
     protected override void CancelChangesCore()
     {
         throw new System.NotImplementedException();

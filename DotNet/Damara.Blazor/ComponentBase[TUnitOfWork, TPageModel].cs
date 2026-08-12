@@ -2,6 +2,7 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
+using System;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -85,6 +86,7 @@ public abstract class ComponentBase<TUnitOfWork, TPageModel> : OwningComponentBa
     /// <summary>
     /// Cancels the changes.
     /// </summary>
+    [Obsolete("EF Core change tracking does not support undo; kept for backwards compatibility.")]
     protected void CancelChanges()
     {
         this.UnitOfWork.CancelChanges();
