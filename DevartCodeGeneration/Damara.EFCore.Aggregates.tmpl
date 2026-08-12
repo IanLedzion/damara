@@ -62,6 +62,7 @@
 <#@ extended name="EntityBase" owner="ContextModel" displayName="Base Entity Type" type="System.String" description="Base class or interface for the entity classes." #>
 <#@ extended name="EntityBase" owner="Class" displayName="Base Type" type="System.String" description="Base class or interface for the entity class." #>
 <#@ extended name="AggregateRootName" owner="Class" displayName="Aggregate Root Name" type="System.String" default="" description="Name of the aggregate the entity belongs to. Drives the output subfolder ({Aggregate}\Entities) and namespace ({DefaultNamespace}.{Aggregate}.Entities). Classes with no value are excluded from generation and reported as a warning." #>
+<#@ extended name="ToString" owner="Property" displayName="ToString" type="System.Boolean" default="False" description="If set to True, the entity class overrides ToString() to return this property (with a .ToString() call when the property is not a string)." #>
 <#@ extended name="ComplexTypeBase" owner="ContextModel" displayName="Base Complex Type" type="System.String" description="Base class or interface for the complex types." #>
 <#@ extended name="ComplexTypeBase" owner="ComplexType" displayName="Base Type" type="System.String" description="Base class or interface for the complex type." #>
 <#@ extended name="ConstructorModifier" owner="Class" type="MemberAccess" Default="Public" description="Determines access for the class constructor." #>
@@ -572,21 +573,18 @@ namespace <#= _namespace.Key #>;
         }
       }
 
-      // default constructor
+      // default constructor: internal so entities are only created through the model's factories.
+      // Lazy-loading proxies (Castle) subclass the entity from DynamicProxyGenAssembly2, so the
+      // model assembly must declare InternalsVisibleTo("DynamicProxyGenAssembly2") (Atlas: Core.csproj).
       bool doNotGenerateDefaultConstructor = (bool)cls.GetProperty("DoNotGenerateDefaultConstructor");
       if (!doNotGenerateDefaultConstructor) {
 #>
 
-<#
-        if (GenerateDummyComments) {
-#>
     /// <summary>
-    /// There are no comments for <#= codeProvider.GetValidIdentifier(cls.Name) #> constructor in the schema.
+    /// Initializes a new instance of the <see cref="<#= codeProvider.GetValidIdentifier(cls.Name) #>"/> class.
+    /// The constructor is internal so that entities are only created through the model's factories.
     /// </summary>
-<#
-        }
-#>
-    <#= codeProvider.FormatMemberAccess((MemberAccess)cls.GetProperty("ConstructorModifier")) #> <#= codeProvider.GetValidIdentifier(cls.Name) #>()
+    internal <#= codeProvider.GetValidIdentifier(cls.Name) #>()
     {
 <#
         foreach (EntityProperty property in cls.Properties) {
@@ -707,6 +705,23 @@ namespace <#= _namespace.Key #>;
             propertyCounter ++;
           GenerateRelationProperty(relationProperty, propertyCounter, PropertyChangeNotifiers, _namespace.Key);
         }
+      }
+
+      // ToString override from the property flagged with the ToString extended property
+      var toStringProperties = cls.Properties.OfType<EntityProperty>().Where(p => (bool)p.GetProperty("ToString")).ToList();
+      if (toStringProperties.Count > 1)
+        throw new InvalidOperationException(string.Format("Class {0} has {1} properties flagged ToString ({2}); exactly one is allowed.", cls.Name, toStringProperties.Count, string.Join(", ", toStringProperties.Select(p => p.Name))));
+      if (toStringProperties.Count > 0) {
+        EntityProperty toStringProperty = toStringProperties[0];
+        bool isStringProperty = !(toStringProperty.Type is ICodeElement) && toStringProperty.Type != null && toStringProperty.Type.ToString() == "String";
+#>
+
+    /// <summary>
+    /// Returns a <see cref="string"/> that represents this instance.
+    /// </summary>
+    /// <returns>The name of the data type.</returns>
+    public override string ToString() => this.<#= codeProvider.GetValidIdentifier(toStringProperty.Name) #><#= isStringProperty ? "" : ".ToString()" #>;
+<#
       }
 
       // extensibility method definitions
