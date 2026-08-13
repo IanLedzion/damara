@@ -13,7 +13,7 @@ namespace Damara.EntityFramework;
 /// <typeparam name="TIUnitOfWork">The unit of work contract.</typeparam>
 /// <typeparam name="TUnitOfWork">The type of the unit of work.</typeparam>
 /// <typeparam name="TEntity">The entity type managed by the repository.</typeparam>
-/// <seealso cref="Damara.RepositoryBase&lt;TIUnitOfWork, TEntity&gt;" />
+/// <seealso cref="RepositoryBase&lt;TIUnitOfWork, TEntity&gt;" />
 public abstract class EntityFrameworkRepository<TDbContext, TIUnitOfWork, TUnitOfWork, TEntity> : RepositoryBase<TIUnitOfWork, TEntity>
     where TDbContext : DbContext
     where TIUnitOfWork : IUnitOfWork
