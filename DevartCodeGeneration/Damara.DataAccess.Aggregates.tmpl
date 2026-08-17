@@ -18,6 +18,7 @@
 <#@ property name="ModelNameAsFilesPrefix" category="Output" type="System.Boolean" default="True" description="If it is set to True, then the main model file name will be used as a prefix for the names of the repository files generated for entities." #>
 <#@ property name="RepositoryOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated repository classes for EF Core model." #>
 <#@ property name="ValidationOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated domain service classes for EF Core model." #>
+<#@ property name="CapabilityOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies the root output for the generated capability slices ({Aggregate}\Capabilities\{Capability})." #>
 <#
   // Generation options
 #>
@@ -62,6 +63,9 @@
 
   // Validation class generation
   GenerateEntityValidationClasses(UnitOfWorkName, dataAccessLayerNamespace);
+
+  // Capability slice generation
+  GenerateEntityCapabilityClasses();
 
   // Global usings for the generated data access layer
   GenerateGlobalUsings(dataAccessLayerNamespace);
@@ -881,12 +885,288 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
     return info;
   }
 
+  // Method GetCapabilityMembers
+  // Capability name -> members tagged with it via the comma-separated
+  // Capabilities extended property on Property and RelationProperty.
+  private Dictionary<string, List<object>> GetCapabilityMembers(EntityClass cls) {
+    var map = new Dictionary<string, List<object>>();
+    foreach (EntityProperty property in cls.Properties.OfType<EntityProperty>())
+      AddCapabilityMember(map, property.GetProperty("Capabilities") as string, property);
+    foreach (EntityRelationProperty relationProperty in cls.RelationProperties.OfType<EntityRelationProperty>().Where(r => r.Generate))
+      AddCapabilityMember(map, relationProperty.GetProperty("Capabilities") as string, relationProperty);
+    return map;
+  }
+
+  // Method AddCapabilityMember
+  private void AddCapabilityMember(Dictionary<string, List<object>> map, string capabilities, object member) {
+    if (string.IsNullOrWhiteSpace(capabilities))
+      return;
+    foreach (string capability in capabilities.Split(',')) {
+      string name = codeProvider.GetValidIdentifier(capability.Trim());
+      if (string.IsNullOrEmpty(name))
+        continue;
+      if (!map.ContainsKey(name))
+        map[name] = new List<object>();
+      map[name].Add(member);
+    }
+  }
+
+  // Method GetCapabilityNamespace
+  private string GetCapabilityNamespace(EntityClass cls, string capability) {
+    return codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Capabilities." + capability;
+  }
+#>
+<#+
+  //------------------------------------------------------------------------------
+  // Capability slice generation: for every entity class with members tagged
+  // via the Capabilities extended property, generates the capability slice
+  // under {Aggregate}\Capabilities\{Capability} - partial pairs for the
+  // interface (I{Capability}), the entity wrapper ({Capability}) and the
+  // extension class ({Capability}Extensions) carrying the OnXChanging /
+  // OnXChanged hook bridges with elidable static partial Handle* methods.
+  //------------------------------------------------------------------------------
+  private void GenerateEntityCapabilityClasses() {
+    foreach (EntityClass cls in model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c))) {
+      var capabilities = GetCapabilityMembers(cls);
+      if (capabilities.Count == 0)
+        continue;
+
+      string entityTypeName = GetEmittedNamespace(cls) + "." + codeProvider.GetValidIdentifier(cls.Name);
+
+      foreach (var capabilityPair in capabilities.OrderBy(p => p.Key, StringComparer.Ordinal)) {
+        string capability = capabilityPair.Key;
+        List<object> members = capabilityPair.Value;
+        string _namespace = GetCapabilityNamespace(cls, capability);
+        OutputInfo capabilityOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Capabilities", capability));
+        string receiver = FirstCharToLowerCase(capability);
+
+        GenerateCapabilityInterface(cls, capability, members, _namespace, capabilityOutput);
+        GenerateCapabilityWrapper(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
+        GenerateCapabilityExtensions(cls, capability, members, _namespace, capabilityOutput, receiver);
+      }
+    }
+  }
+
+  // Method GetCapabilityMemberName
+  private string GetCapabilityMemberName(object member) {
+    var property = member as EntityProperty;
+    if (property != null)
+      return codeProvider.GetValidIdentifier(property.Name);
+    return codeProvider.GetValidIdentifier(((EntityRelationProperty)member).Name);
+  }
+
+  // Method GetCapabilityMemberType
+  private string GetCapabilityMemberType(object member, string _namespace) {
+    var property = member as EntityProperty;
+    if (property != null)
+      return GetPropertyType(property, _namespace);
+    return GetRelationPropertyTypeName((EntityRelationProperty)member, _namespace);
+  }
+
+  // Method IsCapabilityMemberSettable
+  // Collections are exposed get-only; everything else is settable and hooked.
+  private bool IsCapabilityMemberSettable(object member) {
+    var relationProperty = member as EntityRelationProperty;
+    return relationProperty == null || relationProperty.Multiplicity != Multiplicity.Many;
+  }
+
+  // Method GenerateCapabilityInterface
+  private void GenerateCapabilityInterface(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput) {
+    string rootFileName = "I" + capability;
+    output.Extension = ".cs";
+    output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Capability contract for <see cref="<#= _namespace #>.<#= capability #>" />.
+/// </summary>
+public partial interface I<#= capability #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(capabilityOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public partial interface I<#= capability #>
+{
+<#+
+    foreach (object member in members) {
+      string memberName = GetCapabilityMemberName(member);
+      string memberType = GetCapabilityMemberType(member, _namespace);
+      string accessors = IsCapabilityMemberSettable(member) ? "{ get; set; }" : "{ get; }";
+#>
+    /// <summary>Gets or sets the <#= memberName #>.</summary>
+    <#= memberType #> <#= memberName #> <#= accessors #>
+
+<#+
+    }
+#>
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
+  // Method GenerateCapabilityWrapper
+  private void GenerateCapabilityWrapper(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string entityTypeName) {
+    string rootFileName = capability;
+    output.Extension = ".cs";
+    output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// <#= capability #> capability over <see cref="<#= entityTypeName #>" />.
+/// </summary>
+public sealed partial class <#= capability #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(capabilityOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public sealed partial class <#= capability #> : I<#= capability #>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= capability #>"/> class.
+    /// </summary>
+    /// <param name="entity">The wrapped entity.</param>
+    public <#= capability #>(<#= entityTypeName #> entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        this.Entity = entity;
+    }
+
+    /// <summary>Gets the wrapped entity.</summary>
+    internal <#= entityTypeName #> Entity { get; }
+<#+
+    foreach (object member in members) {
+      string memberName = GetCapabilityMemberName(member);
+      string memberType = GetCapabilityMemberType(member, _namespace);
+      if (IsCapabilityMemberSettable(member)) {
+#>
+
+    /// <summary>Gets or sets the <#= memberName #>.</summary>
+    public <#= memberType #> <#= memberName #>
+    {
+        get => this.Entity.<#= memberName #>;
+        set
+        {
+            if (this.Entity.<#= memberName #> == value)
+            {
+                return;
+            }
+
+            this.Handle<#= memberName #>Changing(value);
+            this.Entity.<#= memberName #> = value;
+            this.Handle<#= memberName #>Changed();
+        }
+    }
+<#+
+      }
+      else {
+#>
+
+    /// <summary>Gets the <#= memberName #>.</summary>
+    public <#= memberType #> <#= memberName #> => this.Entity.<#= memberName #>;
+<#+
+      }
+    }
+#>
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
+  // Method GenerateCapabilityExtensions
+  private void GenerateCapabilityExtensions(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string receiver) {
+    string rootFileName = capability + "Extensions";
+    output.Extension = ".cs";
+    output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Hand-written half of the <#= capability #> capability: implement the
+/// On*Changing / On*Changed partial methods that carry property-update
+/// cascades (the same convention as the Devart entity hooks). Unimplemented
+/// handlers are elided. No unit-of-work access here - cascades needing
+/// lookups escalate to a domain service.
+/// </summary>
+public static partial class <#= capability #>Extensions
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(capabilityOutput, rootFileName, rootFileName + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public static partial class <#= capability #>Extensions
+{
+    extension(<#= capability #> <#= receiver #>)
+    {
+<#+
+    bool firstHook = true;
+    foreach (object member in members) {
+      if (!IsCapabilityMemberSettable(member))
+        continue;
+      string memberName = GetCapabilityMemberName(member);
+      string memberType = GetCapabilityMemberType(member, _namespace);
+      if (!firstHook) {
+#>
+
+<#+
+      }
+      firstHook = false;
+#>
+        internal void Handle<#= memberName #>Changing(<#= memberType #> value) => On<#= memberName #>Changing(<#= receiver #>, value);
+
+        internal void Handle<#= memberName #>Changed() => On<#= memberName #>Changed(<#= receiver #>);
+<#+
+    }
+#>
+    }
+<#+
+    foreach (object member in members) {
+      if (!IsCapabilityMemberSettable(member))
+        continue;
+      string memberName = GetCapabilityMemberName(member);
+      string memberType = GetCapabilityMemberType(member, _namespace);
+#>
+
+    static partial void On<#= memberName #>Changing(<#= capability #> <#= receiver #>, <#= memberType #> value);
+
+    static partial void On<#= memberName #>Changed(<#= capability #> <#= receiver #>);
+<#+
+    }
+#>
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
   // Method GenerateGlobalUsings
   // Publishes the namespaces of every generated data access artifact plus the
   // libraries the generated code relies on.
   private void GenerateGlobalUsings(string dataAccessLayerNamespace) {
     var kindNamespaces = new List<string>();
     foreach (EntityClass cls in model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c))) {
+      foreach (string capability in GetCapabilityMembers(cls).Keys)
+        kindNamespaces.Add(GetCapabilityNamespace(cls, capability));
       if ((bool)cls.GetProperty("GenerateRepository"))
         kindNamespaces.Add(GetKindNamespace(cls, "Repositories"));
       if ((bool)cls.GetProperty("GenerateFactory"))
