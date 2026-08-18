@@ -34,6 +34,9 @@
   // extended options for model objects
 #>
 <#@ extended name="GenerateRepository" owner="Class" type="System.Boolean" default="True" description="Defines whether to generate interface and repository class for entity in case of non-generic repository pattern implementation generation." #>
+<#@ extended name="Capabilities" owner="Property" type="System.String" default="" description="Comma-separated capability names this member belongs to; drives I{Capability} and {Capability}Extensions generation." #>
+<#@ extended name="Capabilities" owner="RelationProperty" type="System.String" default="" description="Comma-separated capability names this member belongs to; drives I{Capability} and {Capability}Extensions generation." #>
+<#@ extended name="CapableClasses" owner="Class" type="System.String" default="" description="Capable classes composed of capabilities: {ClassName1}:{Cap1},{Cap2};{ClassName2}:{Cap1},... Each generates a wrapper class in {Aggregate}\Definitions implementing the listed capability interfaces." #>
 <#
   // Settings
   output.Extension = ".cs";
@@ -928,6 +931,15 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   private void GenerateEntityCapabilityClasses() {
     foreach (EntityClass cls in model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c))) {
       var capabilities = GetCapabilityMembers(cls);
+      var capableClasses = GetCapableClasses(cls);
+
+      // capabilities referenced only by a capable class still get their
+      // interface and extension class, with no members
+      foreach (var capableClass in capableClasses)
+        foreach (string capability in capableClass.Value)
+          if (!capabilities.ContainsKey(capability))
+            capabilities[capability] = new List<object>();
+
       if (capabilities.Count == 0)
         continue;
 
@@ -940,11 +952,41 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         OutputInfo capabilityOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Capabilities", capability));
         string receiver = FirstCharToLowerCase(capability);
 
-        GenerateCapabilityInterface(cls, capability, members, _namespace, capabilityOutput);
-        GenerateCapabilityWrapper(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
+        GenerateCapabilityInterface(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
         GenerateCapabilityExtensions(cls, capability, members, _namespace, capabilityOutput, receiver);
       }
+
+      foreach (var capableClass in capableClasses.OrderBy(p => p.Key, StringComparer.Ordinal))
+        GenerateCapableClass(cls, capableClass.Key, capableClass.Value, capabilities, entityTypeName);
     }
+  }
+
+  // Method GetCapableClasses
+  // Capable class name -> ordered capability list, parsed from the
+  // CapableClasses extended property: {Class1}:{Cap1},{Cap2};{Class2}:...
+  private Dictionary<string, List<string>> GetCapableClasses(EntityClass cls) {
+    var map = new Dictionary<string, List<string>>();
+    string value = cls.GetProperty("CapableClasses") as string;
+    if (string.IsNullOrWhiteSpace(value))
+      return map;
+    foreach (string entry in value.Split(';')) {
+      if (string.IsNullOrWhiteSpace(entry))
+        continue;
+      string[] parts = entry.Split(':');
+      if (parts.Length != 2)
+        throw new InvalidOperationException(string.Format("Class {0}: CapableClasses entry '{1}' is not {{ClassName}}:{{Capability}},...", cls.Name, entry.Trim()));
+      string className = codeProvider.GetValidIdentifier(parts[0].Trim());
+      var capabilityNames = new List<string>();
+      foreach (string capability in parts[1].Split(',')) {
+        string name = codeProvider.GetValidIdentifier(capability.Trim());
+        if (!string.IsNullOrEmpty(name) && !capabilityNames.Contains(name))
+          capabilityNames.Add(name);
+      }
+      if (capabilityNames.Count == 0)
+        throw new InvalidOperationException(string.Format("Class {0}: capable class '{1}' lists no capabilities.", cls.Name, className));
+      map[className] = capabilityNames;
+    }
+    return map;
   }
 
   // Method GetCapabilityMemberName
@@ -971,7 +1013,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   }
 
   // Method GenerateCapabilityInterface
-  private void GenerateCapabilityInterface(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput) {
+  private void GenerateCapabilityInterface(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string entityTypeName) {
     string rootFileName = "I" + capability;
     output.Extension = ".cs";
     output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
@@ -979,7 +1021,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 namespace <#= _namespace #>;
 
 /// <summary>
-/// Capability contract for <see cref="<#= _namespace #>.<#= capability #>" />.
+/// The <#= capability #> capability contract, implemented by capable classes.
 /// </summary>
 public partial interface I<#= capability #>
 {
@@ -995,6 +1037,9 @@ namespace <#= _namespace #>;
 
 public partial interface I<#= capability #>
 {
+    /// <summary>Gets the underlying entity.</summary>
+    internal <#= entityTypeName #> Entity { get; }
+
 <#+
     foreach (object member in members) {
       string memberName = GetCapabilityMemberName(member);
@@ -1005,82 +1050,6 @@ public partial interface I<#= capability #>
     <#= memberType #> <#= memberName #> <#= accessors #>
 
 <#+
-    }
-#>
-}
-<#+
-    output.PopOutputRedirection();
-  }
-
-  // Method GenerateCapabilityWrapper
-  private void GenerateCapabilityWrapper(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string entityTypeName) {
-    string rootFileName = capability;
-    output.Extension = ".cs";
-    output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
-#>
-namespace <#= _namespace #>;
-
-/// <summary>
-/// <#= capability #> capability over <see cref="<#= entityTypeName #>" />.
-/// </summary>
-public sealed partial class <#= capability #>
-{
-}
-<#+
-    output.PopOutputRedirection();
-
-    output.PushOutputRedirection(capabilityOutput, rootFileName, rootFileName + ".Generated");
-    GenerateFileHeader(true);
-#>
-
-namespace <#= _namespace #>;
-
-public sealed partial class <#= capability #> : I<#= capability #>
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="<#= capability #>"/> class.
-    /// </summary>
-    /// <param name="entity">The wrapped entity.</param>
-    public <#= capability #>(<#= entityTypeName #> entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        this.Entity = entity;
-    }
-
-    /// <summary>Gets the wrapped entity.</summary>
-    internal <#= entityTypeName #> Entity { get; }
-<#+
-    foreach (object member in members) {
-      string memberName = GetCapabilityMemberName(member);
-      string memberType = GetCapabilityMemberType(member, _namespace);
-      if (IsCapabilityMemberSettable(member)) {
-#>
-
-    /// <summary>Gets or sets the <#= memberName #>.</summary>
-    public <#= memberType #> <#= memberName #>
-    {
-        get => this.Entity.<#= memberName #>;
-        set
-        {
-            if (this.Entity.<#= memberName #> == value)
-            {
-                return;
-            }
-
-            this.Handle<#= memberName #>Changing(value);
-            this.Entity.<#= memberName #> = value;
-            this.Handle<#= memberName #>Changed();
-        }
-    }
-<#+
-      }
-      else {
-#>
-
-    /// <summary>Gets the <#= memberName #>.</summary>
-    public <#= memberType #> <#= memberName #> => this.Entity.<#= memberName #>;
-<#+
-      }
     }
 #>
 }
@@ -1117,7 +1086,7 @@ namespace <#= _namespace #>;
 
 public static partial class <#= capability #>Extensions
 {
-    extension(<#= capability #> <#= receiver #>)
+    extension(I<#= capability #> <#= receiver #>)
     {
 <#+
     bool firstHook = true;
@@ -1148,10 +1117,118 @@ public static partial class <#= capability #>Extensions
       string memberType = GetCapabilityMemberType(member, _namespace);
 #>
 
-    static partial void On<#= memberName #>Changing(<#= capability #> <#= receiver #>, <#= memberType #> value);
+    static partial void On<#= memberName #>Changing(I<#= capability #> <#= receiver #>, <#= memberType #> value);
 
-    static partial void On<#= memberName #>Changed(<#= capability #> <#= receiver #>);
+    static partial void On<#= memberName #>Changed(I<#= capability #> <#= receiver #>);
 <#+
+    }
+#>
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
+  // Method GenerateCapableClass
+  // A capable class composes the listed capabilities: it implements each
+  // I{Capability}, carries the wrapping properties for every tagged member
+  // (first listed capability owns a member appearing in several), and fires
+  // the owning capability's Handle hooks around each write.
+  private void GenerateCapableClass(EntityClass cls, string className, List<string> capabilityNames, Dictionary<string, List<object>> capabilities, string entityTypeName) {
+    string _namespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
+    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
+
+    var interfaceNames = new List<string>();
+    foreach (string capability in capabilityNames)
+      interfaceNames.Add(GetCapabilityNamespace(cls, capability) + ".I" + capability);
+
+    // union of members over the listed capabilities; first capability wins
+    var memberOwners = new List<KeyValuePair<object, string>>();
+    var seenMembers = new List<string>();
+    foreach (string capability in capabilityNames) {
+      foreach (object member in capabilities[capability]) {
+        string name = GetCapabilityMemberName(member);
+        if (seenMembers.Contains(name))
+          continue;
+        seenMembers.Add(name);
+        memberOwners.Add(new KeyValuePair<object, string>(member, capability));
+      }
+    }
+
+    output.Extension = ".cs";
+    output.PushOutputRedirection(classOutput, "", className, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// <#= className #> capable class over <see cref="<#= entityTypeName #>" />.
+/// </summary>
+public sealed partial class <#= className #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(classOutput, className, className + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public sealed partial class <#= className #> : <#= codeProvider.Join(", ", interfaceNames.ToArray()) #>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= className #>"/> class.
+    /// </summary>
+    /// <param name="entity">The wrapped entity.</param>
+    public <#= className #>(<#= entityTypeName #> entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        this.Entity = entity;
+    }
+
+    /// <summary>Gets the wrapped entity.</summary>
+    internal <#= entityTypeName #> Entity { get; }
+<#+
+    foreach (string capability in capabilityNames) {
+#>
+
+    <#= entityTypeName #> <#= GetCapabilityNamespace(cls, capability) #>.I<#= capability #>.Entity => this.Entity;
+<#+
+    }
+
+    foreach (var memberOwner in memberOwners) {
+      object member = memberOwner.Key;
+      string owningInterface = GetCapabilityNamespace(cls, memberOwner.Value) + ".I" + memberOwner.Value;
+      string memberName = GetCapabilityMemberName(member);
+      string memberType = GetCapabilityMemberType(member, _namespace);
+      if (IsCapabilityMemberSettable(member)) {
+#>
+
+    /// <summary>Gets or sets the <#= memberName #>.</summary>
+    public <#= memberType #> <#= memberName #>
+    {
+        get => this.Entity.<#= memberName #>;
+        set
+        {
+            if (this.Entity.<#= memberName #> == value)
+            {
+                return;
+            }
+
+            ((<#= owningInterface #>)this).Handle<#= memberName #>Changing(value);
+            this.Entity.<#= memberName #> = value;
+            ((<#= owningInterface #>)this).Handle<#= memberName #>Changed();
+        }
+    }
+<#+
+      }
+      else {
+#>
+
+    /// <summary>Gets the <#= memberName #>.</summary>
+    public <#= memberType #> <#= memberName #> => this.Entity.<#= memberName #>;
+<#+
+      }
     }
 #>
 }
@@ -1167,6 +1244,11 @@ public static partial class <#= capability #>Extensions
     foreach (EntityClass cls in model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c))) {
       foreach (string capability in GetCapabilityMembers(cls).Keys)
         kindNamespaces.Add(GetCapabilityNamespace(cls, capability));
+      foreach (var capableClass in GetCapableClasses(cls))
+        foreach (string capability in capableClass.Value)
+          kindNamespaces.Add(GetCapabilityNamespace(cls, capability));
+      if (GetCapableClasses(cls).Count > 0)
+        kindNamespaces.Add(codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions");
       if ((bool)cls.GetProperty("GenerateRepository"))
         kindNamespaces.Add(GetKindNamespace(cls, "Repositories"));
       if ((bool)cls.GetProperty("GenerateFactory"))
