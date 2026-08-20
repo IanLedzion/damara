@@ -68,7 +68,7 @@
   GenerateEntityValidationClasses(UnitOfWorkName, dataAccessLayerNamespace);
 
   // Capability slice generation
-  GenerateEntityCapabilityClasses();
+  GenerateEntityCapabilityClasses(UnitOfWorkName, dataAccessLayerNamespace);
 
   // Global usings for the generated data access layer
   GenerateGlobalUsings(dataAccessLayerNamespace);
@@ -642,12 +642,33 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         : base(unitOfWork)
     {
 <#+
-      var validationProperties = cls
-        .Properties
-        .OfType<EntityProperty>()
-        .Where(p => !p.IsComplexType && (p.GetterModifier == MemberAccess.Public || p.GetterModifier == MemberAccess.Internal))
-        .ToArray();
+      GenerateValidationRules(cls, GetValidationProperties(cls.Properties.OfType<EntityProperty>()));
+#>
 
+        this.OnCreated();
+    }
+
+    partial void OnCreated();
+}
+<#+
+      output.PopOutputRedirection();
+    }
+  }
+
+  // Method GetValidationProperties
+  // The members the metadata-driven rules apply to, shared by the entity and
+  // capability validators.
+  private EntityProperty[] GetValidationProperties(IEnumerable<EntityProperty> properties) {
+    return properties
+      .Where(p => !p.IsComplexType && (p.GetterModifier == MemberAccess.Public || p.GetterModifier == MemberAccess.Internal))
+      .ToArray();
+  }
+
+  // Method GenerateValidationRules
+  // Emits the metadata-driven RuleFor chains shared by the entity and
+  // capability validators (nullability, required, range, length, pattern and
+  // format rules); error codes are keyed by the entity class name either way.
+  private void GenerateValidationRules(EntityClass cls, EntityProperty[] validationProperties) {
       foreach (EntityProperty property in validationProperties) {
         var builder = new StringBuilder();
         var cascadeStop = false;
@@ -721,16 +742,6 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         this.RuleFor(p => p.<#= property.Name #>)<#= cascadeStop ? ".Cascade(CascadeMode.Stop)" : string.Empty #><#= builder.ToString() #>;
 <#+
       }
-#>
-
-        this.OnCreated();
-    }
-
-    partial void OnCreated();
-}
-<#+
-      output.PopOutputRedirection();
-    }
   }
 #>
 <#+
@@ -930,7 +941,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   // On{Entity}PropertyChanged) and it carries the tagged members with
   // On*Changing / On*Changed hooks, all as elidable instance partial methods.
   //------------------------------------------------------------------------------
-  private void GenerateEntityCapabilityClasses() {
+  private void GenerateEntityCapabilityClasses(string unitOfWorkName, string unitOfWorkNamespace) {
     foreach (EntityClass cls in model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c))) {
       var capabilities = GetCapabilityMembers(cls);
       var capableClasses = GetCapableClasses(cls);
@@ -946,6 +957,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         continue;
 
       string entityTypeName = GetEmittedNamespace(cls) + "." + codeProvider.GetValidIdentifier(cls.Name);
+      bool generateValidators = (bool)cls.GetProperty("GenerateValidator");
 
       foreach (var capabilityPair in capabilities.OrderBy(p => p.Key, StringComparer.Ordinal)) {
         string capability = capabilityPair.Key;
@@ -955,10 +967,15 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 
         GenerateCapabilityInterface(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
         GenerateCapabilityClass(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
+        if (generateValidators)
+          GenerateCapabilityValidator(cls, capability, members, _namespace, capabilityOutput, unitOfWorkName, unitOfWorkNamespace);
       }
 
-      foreach (var capableClass in capableClasses.OrderBy(p => p.Key, StringComparer.Ordinal))
+      foreach (var capableClass in capableClasses.OrderBy(p => p.Key, StringComparer.Ordinal)) {
         GenerateCapableClass(cls, capableClass.Key, capableClass.Value, capabilities, entityTypeName);
+        if (generateValidators)
+          GenerateCapableClassValidator(cls, capableClass.Key, capableClass.Value, unitOfWorkName, unitOfWorkNamespace);
+      }
     }
   }
 
@@ -1169,6 +1186,55 @@ internal partial class <#= capability #>Capability
     output.PopOutputRedirection();
   }
 
+  // Method GenerateCapabilityValidator
+  // The capability validator: the generated half carries the same
+  // metadata-driven rules as the underlying entity's validator, restricted to
+  // the capability's tagged members; the definition validator delegates to it.
+  private void GenerateCapabilityValidator(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string unitOfWorkName, string unitOfWorkNamespace) {
+    string validatorClassName = capability + "CapabilityValidator";
+    string validatorBaseClassName = string.Format("Damara.ValidatorBase<{0}.I{1}, {2}Capability>", unitOfWorkNamespace, unitOfWorkName, capability);
+    output.Extension = ".cs";
+    output.PushOutputRedirection(capabilityOutput, "", validatorClassName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides validation for the <see cref="<#= capability #>Capability"/> class.
+/// </summary>
+internal partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(capabilityOutput, validatorClassName, validatorClassName + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+internal partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= validatorClassName #>"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    public <#= validatorClassName #>(<#= unitOfWorkNamespace #>.I<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+<#+
+    GenerateValidationRules(cls, GetValidationProperties(members.OfType<EntityProperty>()));
+#>
+
+        this.OnCreated();
+    }
+
+    partial void OnCreated();
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
   // Method GenerateCapableClass
   // A capable class ({ClassName}Definition) composes the listed capabilities:
   // it implements each I{Capability}, wraps one {Capability}Capability
@@ -1182,10 +1248,10 @@ internal partial class <#= capability #>Capability
     OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
 
     var interfaceNames = new List<string>();
-    var capabilityFields = new Dictionary<string, string>();
+    var capabilityProperties = new Dictionary<string, string>();
     foreach (string capability in capabilityNames) {
       interfaceNames.Add(GetCapabilityNamespace(cls, capability) + ".I" + capability);
-      capabilityFields[capability] = codeProvider.GetValidIdentifier(FirstCharToLowerCase(capability) + "Capability");
+      capabilityProperties[capability] = capability + "Capability";
     }
 
     // union of members over the listed capabilities; first capability wins
@@ -1223,14 +1289,6 @@ namespace <#= _namespace #>;
 
 public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", interfaceNames.ToArray()) #>
 {
-<#+
-    foreach (string capability in capabilityNames) {
-#>
-    private readonly <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>Capability <#= capabilityFields[capability] #>;
-<#+
-    }
-#>
-
     /// <summary>
     /// Initializes a new instance of the <see cref="<#= definitionName #>"/> class.
     /// </summary>
@@ -1242,7 +1300,7 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
 <#+
     foreach (string capability in capabilityNames) {
 #>
-        this.<#= capabilityFields[capability] #> = new <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>Capability(<#= entityReceiver #>);
+        this.<#= capabilityProperties[capability] #> = new <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>Capability(<#= entityReceiver #>);
 <#+
     }
 #>
@@ -1254,13 +1312,21 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
     foreach (string capability in capabilityNames) {
 #>
 
+    /// <summary>Gets the <#= capability #> capability.</summary>
+    internal <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>Capability <#= capabilityProperties[capability] #> { get; }
+<#+
+    }
+
+    foreach (string capability in capabilityNames) {
+#>
+
     <#= entityTypeName #> <#= GetCapabilityNamespace(cls, capability) #>.I<#= capability #>.Entity => this.<#= entityName #>;
 <#+
     }
 
     foreach (var memberOwner in memberOwners) {
       object member = memberOwner.Key;
-      string owningField = capabilityFields[memberOwner.Value];
+      string owningProperty = capabilityProperties[memberOwner.Value];
       string memberName = GetCapabilityMemberName(member);
       string memberType = GetCapabilityMemberType(member, _namespace);
       if (IsCapabilityMemberSettable(member)) {
@@ -1269,8 +1335,8 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
     /// <summary>Gets or sets the <#= memberName #>.</summary>
     public <#= memberType #> <#= memberName #>
     {
-        get => this.<#= owningField #>.<#= memberName #>;
-        set => this.<#= owningField #>.<#= memberName #> = value;
+        get => this.<#= owningProperty #>.<#= memberName #>;
+        set => this.<#= owningProperty #>.<#= memberName #> = value;
     }
 <#+
       }
@@ -1278,11 +1344,67 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
 #>
 
     /// <summary>Gets the <#= memberName #>.</summary>
-    public <#= memberType #> <#= memberName #> => this.<#= owningField #>.<#= memberName #>;
+    public <#= memberType #> <#= memberName #> => this.<#= owningProperty #>.<#= memberName #>;
 <#+
       }
     }
 #>
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
+  // Method GenerateCapableClassValidator
+  // The definition validator: delegates to each composed capability's
+  // validator through RuleFor(...).SetValidator(...) over the definition's
+  // internal capability properties.
+  private void GenerateCapableClassValidator(EntityClass cls, string className, List<string> capabilityNames, string unitOfWorkName, string unitOfWorkNamespace) {
+    string definitionName = className + "Definition";
+    string validatorClassName = definitionName + "Validator";
+    string _namespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
+    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
+    string validatorBaseClassName = string.Format("Damara.ValidatorBase<{0}.I{1}, {2}>", unitOfWorkNamespace, unitOfWorkName, definitionName);
+    output.Extension = ".cs";
+    output.PushOutputRedirection(classOutput, "", validatorClassName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Provides validation for the <see cref="<#= definitionName #>"/> class.
+/// </summary>
+public partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(classOutput, validatorClassName, validatorClassName + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= validatorClassName #>"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    public <#= validatorClassName #>(<#= unitOfWorkNamespace #>.I<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+<#+
+    foreach (string capability in capabilityNames) {
+#>
+        this.RuleFor(d => d.<#= capability #>Capability).SetValidator(new <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>CapabilityValidator(unitOfWork));
+<#+
+    }
+#>
+
+        this.OnCreated();
+    }
+
+    partial void OnCreated();
 }
 <#+
     output.PopOutputRedirection();
