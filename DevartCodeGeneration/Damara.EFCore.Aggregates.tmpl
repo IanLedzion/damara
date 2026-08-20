@@ -626,24 +626,6 @@ namespace <#= _namespace.Key #>;
         }
 #>
         OnCreated();
-<#
-        // capability lifecycle hookup: each capability's extension class (from the
-        // Damara.DataAccess.Aggregates template) exposes Handle{Capability}{Class}Created,
-        // which wires the On{Class}PropertyChanging/Changed observers and fires
-        // the hand-coded On{Class}Created initialisation hook.
-        List<string> entityCapabilityNames = GetEntityCapabilityNames(cls);
-        if (entityCapabilityNames.Count > 0) {
-#>
-
-        // Hook up capabilities
-<#
-          foreach (string entityCapability in entityCapabilityNames) {
-#>
-        this.Handle<#= entityCapability #><#= codeProvider.GetValidIdentifier(cls.Name) #>Created();
-<#
-          }
-        }
-#>
     }
 <#
       }
@@ -723,6 +705,23 @@ namespace <#= _namespace.Key #>;
             propertyCounter ++;
           GenerateRelationProperty(relationProperty, propertyCounter, PropertyChangeNotifiers, _namespace.Key);
         }
+      }
+
+      // definition accessors from the CapableClasses extended property: a cached
+      // {ClassName}Definition instance plus the As{ClassName}Definition method creating
+      // it on first call (capability constructors subscribe to the entity's change
+      // events, so the definition must be created at most once per entity).
+      foreach (string capableClassName in GetCapableClassNames(cls)) {
+        string definitionTypeName = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions." + capableClassName + "Definition";
+#>
+
+    /// <summary>Gets the <#= capableClassName #> definition over this entity, once created by <see cref="As<#= capableClassName #>Definition" />.</summary>
+    public <#= definitionTypeName #> <#= capableClassName #>Definition { get; private set; }
+
+    /// <summary>Gets the <#= capableClassName #> definition over this entity, creating it on first call.</summary>
+    /// <returns>The <#= capableClassName #> definition.</returns>
+    public <#= definitionTypeName #> As<#= capableClassName #>Definition() => this.<#= capableClassName #>Definition ??= new <#= definitionTypeName #>(this);
+<#
       }
 
       // ToString override from the property flagged with the ToString extended property
@@ -3936,42 +3935,30 @@ global using Microsoft.Extensions.Configuration;
     return codeProvider.GetValidIdentifier(aggregateName);
   }
 
-  // Method GetEntityCapabilityNames
-  // Ordered capability names attached to an entity: the union of the
-  // Capabilities extended property on its properties and generated relation
-  // properties plus the capabilities referenced from its CapableClasses
-  // extended property (both declared by the Damara.DataAccess.Aggregates
-  // template). Drives the Handle{Capability}{Class}Created hookup calls
-  // emitted at the end of the entity's default constructor.
-  private List<string> GetEntityCapabilityNames(EntityClass cls) {
+  // Method GetCapableClassNames
+  // Ordered capable class names from the entity's CapableClasses extended
+  // property (declared by the Damara.DataAccess.Aggregates template, which
+  // generates a {ClassName}Definition per entry). Drives the cached
+  // {ClassName}Definition property and As{ClassName}Definition method emitted
+  // on the entity.
+  private List<string> GetCapableClassNames(EntityClass cls) {
 
     var names = new List<string>();
-    foreach (EntityProperty property in cls.Properties.OfType<EntityProperty>())
-      AddEntityCapabilityNames(names, property.GetProperty("Capabilities") as string);
-    foreach (EntityRelationProperty relationProperty in cls.RelationProperties.OfType<EntityRelationProperty>().Where(r => r.Generate))
-      AddEntityCapabilityNames(names, relationProperty.GetProperty("Capabilities") as string);
-    string capableClasses = cls.GetProperty("CapableClasses") as string;
-    if (!string.IsNullOrWhiteSpace(capableClasses)) {
-      foreach (string entry in capableClasses.Split(';')) {
-        string[] parts = entry.Split(':');
-        if (parts.Length == 2)
-          AddEntityCapabilityNames(names, parts[1]);
-      }
-    }
-    names.Sort(StringComparer.Ordinal);
-    return names;
-  }
-
-  // Method AddEntityCapabilityNames
-  private void AddEntityCapabilityNames(List<string> names, string capabilities) {
-
-    if (string.IsNullOrWhiteSpace(capabilities))
-      return;
-    foreach (string capability in capabilities.Split(',')) {
-      string name = codeProvider.GetValidIdentifier(capability.Trim());
+    string value = cls.GetProperty("CapableClasses") as string;
+    if (string.IsNullOrWhiteSpace(value))
+      return names;
+    foreach (string entry in value.Split(';')) {
+      if (string.IsNullOrWhiteSpace(entry))
+        continue;
+      string[] parts = entry.Split(':');
+      if (parts.Length != 2)
+        continue;
+      string name = codeProvider.GetValidIdentifier(parts[0].Trim());
       if (!string.IsNullOrEmpty(name) && !names.Contains(name))
         names.Add(name);
     }
+    names.Sort(StringComparer.Ordinal);
+    return names;
   }
 
   // Method GetEmittedNamespace
