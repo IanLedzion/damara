@@ -924,9 +924,10 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   // Capability slice generation: for every entity class with members tagged
   // via the Capabilities extended property, generates the capability slice
   // under {Aggregate}\Capabilities\{Capability} - partial pairs for the
-  // interface (I{Capability}), the entity wrapper ({Capability}) and the
-  // extension class ({Capability}Extensions) carrying the OnXChanging /
-  // OnXChanged hook bridges with elidable static partial Handle* methods.
+  // interface (I{Capability}) and the extension class ({Capability}Extensions)
+  // carrying the On*Changing / On*Changed hook bridges plus the entity
+  // lifecycle hookup (On{Entity}Created / On{Entity}PropertyChanging /
+  // On{Entity}PropertyChanged), all as elidable static partial methods.
   //------------------------------------------------------------------------------
   private void GenerateEntityCapabilityClasses() {
     foreach (EntityClass cls in model.Classes.Cast<EntityClass>().Where(c => IsGenerated(c))) {
@@ -953,7 +954,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         string receiver = FirstCharToLowerCase(capability);
 
         GenerateCapabilityInterface(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
-        GenerateCapabilityExtensions(cls, capability, members, _namespace, capabilityOutput, receiver);
+        GenerateCapabilityExtensions(cls, capability, members, _namespace, capabilityOutput, receiver, entityTypeName);
       }
 
       foreach (var capableClass in capableClasses.OrderBy(p => p.Key, StringComparer.Ordinal))
@@ -1058,8 +1059,10 @@ public partial interface I<#= capability #>
   }
 
   // Method GenerateCapabilityExtensions
-  private void GenerateCapabilityExtensions(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string receiver) {
+  private void GenerateCapabilityExtensions(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string receiver, string entityTypeName) {
     string rootFileName = capability + "Extensions";
+    string entityName = codeProvider.GetValidIdentifier(cls.Name);
+    string entityReceiver = codeProvider.GetValidIdentifier(FirstCharToLowerCase(entityName));
     output.Extension = ".cs";
     output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
 #>
@@ -1068,7 +1071,11 @@ namespace <#= _namespace #>;
 /// <summary>
 /// Hand-written half of the <#= capability #> capability: implement the
 /// On*Changing / On*Changed partial methods that carry property-update
-/// cascades (the same convention as the Devart entity hooks). Unimplemented
+/// cascades (the same convention as the Devart entity hooks), and the
+/// On<#= entityName #>Created / On<#= entityName #>PropertyChanging /
+/// On<#= entityName #>PropertyChanged partial methods that carry hand-coded
+/// initialisation and reactions to writes on the underlying entity (e.g.
+/// reinitialising properties when a defining property changes). Unimplemented
 /// handlers are elided. No unit-of-work access here - cascades needing
 /// lookups escalate to a domain service.
 /// </summary>
@@ -1086,22 +1093,27 @@ namespace <#= _namespace #>;
 
 public static partial class <#= capability #>Extensions
 {
+    extension(<#= entityTypeName #> <#= entityReceiver #>)
+    {
+        internal void Handle<#= capability #><#= entityName #>Created()
+        {
+            <#= entityReceiver #>.PropertyChanging += (sender, e) => On<#= entityName #>PropertyChanging(<#= entityReceiver #>, e.PropertyName);
+            <#= entityReceiver #>.PropertyChanged += (sender, e) => On<#= entityName #>PropertyChanged(<#= entityReceiver #>, e.PropertyName);
+            On<#= entityName #>Created(<#= entityReceiver #>);
+        }
+    }
+
     extension(I<#= capability #> <#= receiver #>)
     {
+        private <#= entityTypeName #> <#= entityName #> => <#= receiver #>.Entity;
 <#+
-    bool firstHook = true;
     foreach (object member in members) {
       if (!IsCapabilityMemberSettable(member))
         continue;
       string memberName = GetCapabilityMemberName(member);
       string memberType = GetCapabilityMemberType(member, _namespace);
-      if (!firstHook) {
 #>
 
-<#+
-      }
-      firstHook = false;
-#>
         internal void Handle<#= memberName #>Changing(<#= memberType #> value) => On<#= memberName #>Changing(<#= receiver #>, value);
 
         internal void Handle<#= memberName #>Changed() => On<#= memberName #>Changed(<#= receiver #>);
@@ -1109,6 +1121,12 @@ public static partial class <#= capability #>Extensions
     }
 #>
     }
+
+    static partial void On<#= entityName #>Created(<#= entityTypeName #> <#= entityReceiver #>);
+
+    static partial void On<#= entityName #>PropertyChanging(<#= entityTypeName #> <#= entityReceiver #>, string propertyName);
+
+    static partial void On<#= entityName #>PropertyChanged(<#= entityTypeName #> <#= entityReceiver #>, string propertyName);
 <#+
     foreach (object member in members) {
       if (!IsCapabilityMemberSettable(member))
