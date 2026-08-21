@@ -726,6 +726,7 @@ namespace <#= _namespace.Key #>;
 #>
 
     /// <summary>Gets the <#= capableClassName #> definition over this entity, once created by <see cref="As<#= capableClassName #>Definition" />.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public <#= definitionTypeName #> <#= capableClassName #>Definition { get; private set; }
 
     /// <summary>Gets the <#= capableClassName #> definition over this entity, creating it on first call.</summary>
