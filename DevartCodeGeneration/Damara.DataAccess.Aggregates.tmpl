@@ -34,8 +34,8 @@
   // extended options for model objects
 #>
 <#@ extended name="GenerateRepository" owner="Class" type="System.Boolean" default="True" description="Defines whether to generate interface and repository class for entity in case of non-generic repository pattern implementation generation." #>
-<#@ extended name="Capabilities" owner="Property" type="System.String" default="" description="Comma-separated capability names this member belongs to; drives I{Capability} and {Capability}Capability generation." #>
-<#@ extended name="Capabilities" owner="RelationProperty" type="System.String" default="" description="Comma-separated capability names this member belongs to; drives I{Capability} and {Capability}Capability generation." #>
+<#@ extended name="Capabilities" owner="Property" type="System.String" default="" description="Comma-separated capability names this member belongs to; drives I{Capability}Capability and {Capability}Capability generation." #>
+<#@ extended name="Capabilities" owner="RelationProperty" type="System.String" default="" description="Comma-separated capability names this member belongs to; drives I{Capability}Capability and {Capability}Capability generation." #>
 <#@ extended name="CapableClasses" owner="Class" type="System.String" default="" description="Capable classes composed of capabilities: {ClassName1}:{Cap1},{Cap2};{ClassName2}:{Cap1},... Each generates a {ClassName}Definition class in {Aggregate}\Definitions implementing the listed capability interfaces and wrapping one {Capability}Capability instance per capability." #>
 <#
   // Settings
@@ -935,7 +935,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   // Capability slice generation: for every entity class with members tagged
   // via the Capabilities extended property, generates the capability slice
   // under {Aggregate}\Capabilities\{Capability} - partial pairs for the
-  // interface (I{Capability}) and the capability instance class
+  // interface (I{Capability}Capability) and the capability instance class
   // ({Capability}Capability) wrapping the entity: its constructor observes the
   // entity's lifecycle (On{Entity}Created / On{Entity}PropertyChanging /
   // On{Entity}PropertyChanged) and it carries the tagged members with
@@ -1032,7 +1032,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 
   // Method GenerateCapabilityInterface
   private void GenerateCapabilityInterface(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string entityTypeName) {
-    string rootFileName = "I" + capability;
+    string rootFileName = "I" + capability + "Capability";
     output.Extension = ".cs";
     output.PushOutputRedirection(capabilityOutput, "", rootFileName, OverwriteMode.None);
 #>
@@ -1041,7 +1041,7 @@ namespace <#= _namespace #>;
 /// <summary>
 /// The <#= capability #> capability contract, implemented by capable classes.
 /// </summary>
-public partial interface I<#= capability #>
+public partial interface I<#= capability #>Capability
 {
 }
 <#+
@@ -1053,7 +1053,7 @@ public partial interface I<#= capability #>
 
 namespace <#= _namespace #>;
 
-public partial interface I<#= capability #>
+public partial interface I<#= capability #>Capability
 {
     /// <summary>Gets the underlying entity.</summary>
     internal <#= entityTypeName #> Entity { get; }
@@ -1192,7 +1192,7 @@ internal partial class <#= capability #>Capability
   // the capability's tagged members; the definition validator delegates to it.
   private void GenerateCapabilityValidator(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string unitOfWorkName, string unitOfWorkNamespace) {
     string validatorClassName = capability + "CapabilityValidator";
-    string validatorBaseClassName = string.Format("Damara.ValidatorBase<{0}.I{1}, {2}Capability>", unitOfWorkNamespace, unitOfWorkName, capability);
+    string validatorBaseClassName = string.Format("Damara.ValidatorBase<{0}.I{1}, I{2}Capability>", unitOfWorkNamespace, unitOfWorkName, capability);
     output.Extension = ".cs";
     output.PushOutputRedirection(capabilityOutput, "", validatorClassName, OverwriteMode.None);
 #>
@@ -1250,7 +1250,7 @@ internal partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
     var interfaceNames = new List<string>();
     var capabilityProperties = new Dictionary<string, string>();
     foreach (string capability in capabilityNames) {
-      interfaceNames.Add(GetCapabilityNamespace(cls, capability) + ".I" + capability);
+      interfaceNames.Add(GetCapabilityNamespace(cls, capability) + ".I" + capability + "Capability");
       capabilityProperties[capability] = capability + "Capability";
     }
 
@@ -1320,7 +1320,7 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
     foreach (string capability in capabilityNames) {
 #>
 
-    <#= entityTypeName #> <#= GetCapabilityNamespace(cls, capability) #>.I<#= capability #>.Entity => this.<#= entityName #>;
+    <#= entityTypeName #> <#= GetCapabilityNamespace(cls, capability) #>.I<#= capability #>Capability.Entity => this.<#= entityName #>;
 <#+
     }
 
@@ -1356,8 +1356,10 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
 
   // Method GenerateCapableClassValidator
   // The definition validator: delegates to each composed capability's
-  // validator through RuleFor(...).SetValidator(...) over the definition's
-  // internal capability properties.
+  // validator through RuleFor(d => d).SetValidator(...) - the capability
+  // validators target the capability interfaces the definition implements
+  // (IValidator<in T> is contravariant), so no capability reference is
+  // needed and failure property names stay unprefixed.
   private void GenerateCapableClassValidator(EntityClass cls, string className, List<string> capabilityNames, string unitOfWorkName, string unitOfWorkNamespace) {
     string definitionName = className + "Definition";
     string validatorClassName = definitionName + "Validator";
@@ -1396,7 +1398,7 @@ public partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
 <#+
     foreach (string capability in capabilityNames) {
 #>
-        this.RuleFor(d => d.<#= capability #>Capability).SetValidator(new <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>CapabilityValidator(unitOfWork));
+        this.RuleFor(d => d).SetValidator(new <#= GetCapabilityNamespace(cls, capability) #>.<#= capability #>CapabilityValidator(unitOfWork));
 <#+
     }
 #>
