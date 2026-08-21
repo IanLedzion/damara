@@ -573,6 +573,16 @@ namespace <#= _namespace.Key #>;
         }
       }
 
+      // definition-cast barrier: tracks which definition the entity has been
+      // cast as, so the As{ClassName}Definition methods can refuse a second,
+      // different cast.
+      if (GetCapableClassNames(cls).Count > 0) {
+#>
+
+    private string castedDefinition;
+<#
+      }
+
       // default constructor: internal so entities are only created through the model's factories.
       // Lazy-loading proxies (Castle) subclass the entity from DynamicProxyGenAssembly2, so the
       // model assembly must declare InternalsVisibleTo("DynamicProxyGenAssembly2") (Atlas: Core.csproj).
@@ -720,7 +730,18 @@ namespace <#= _namespace.Key #>;
 
     /// <summary>Gets the <#= capableClassName #> definition over this entity, creating it on first call.</summary>
     /// <returns>The <#= capableClassName #> definition.</returns>
-    public <#= definitionTypeName #> As<#= capableClassName #>Definition() => this.<#= capableClassName #>Definition ??= new <#= definitionTypeName #>(this);
+    /// <exception cref="InvalidOperationException">The entity is already cast as a different definition.</exception>
+    public <#= definitionTypeName #> As<#= capableClassName #>Definition()
+    {
+        if (this.castedDefinition != null && this.castedDefinition != nameof(<#= capableClassName #>Definition))
+        {
+            throw new InvalidOperationException($"Cannot cast to {nameof(<#= capableClassName #>Definition)} because it is already cast to {this.castedDefinition}.");
+        }
+
+        this.castedDefinition = nameof(<#= capableClassName #>Definition);
+        this.<#= capableClassName #>Definition ??= new <#= definitionTypeName #>(this);
+        return this.<#= capableClassName #>Definition;
+    }
 <#
       }
 
