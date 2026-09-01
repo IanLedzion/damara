@@ -837,8 +837,15 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 
   // Method GetPropertyIsValueType
   private bool GetPropertyIsValueType(Property prop) {
+    // DateOnly and TimeOnly are value types whichever way Entity Developer
+    // models them, so decide by name before the EntityDataType lookup.
+    var typeName = prop.Type == null ? string.Empty : prop.Type.ToString();
+    if (typeName == "DateOnly" || typeName == "TimeOnly") {
+      return true;
+    }
+
     if (prop.Type is EntityDeveloper.EntityFrameworkCore.EntityDataType) {
-      var propType = Type.GetType("System." + prop.Type.ToString());
+      var propType = Type.GetType("System." + typeName);
       if (propType == null) {
         return false;
       }
