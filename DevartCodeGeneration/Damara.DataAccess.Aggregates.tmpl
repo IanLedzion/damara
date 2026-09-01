@@ -1016,11 +1016,16 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   }
 
   // Method GetCapabilityMemberType
+  // Collection members carry the entity's collection navigation type (IList<T>).
   private string GetCapabilityMemberType(object member, string _namespace) {
     var property = member as EntityProperty;
     if (property != null)
       return GetPropertyType(property, _namespace);
-    return GetRelationPropertyTypeName((EntityRelationProperty)member, _namespace);
+    var relationProperty = (EntityRelationProperty)member;
+    string typeName = GetRelationPropertyTypeName(relationProperty, _namespace);
+    if (relationProperty.Multiplicity == Multiplicity.Many)
+      return "IList<" + typeName + ">";
+    return typeName;
   }
 
   // Method IsCapabilityMemberSettable
