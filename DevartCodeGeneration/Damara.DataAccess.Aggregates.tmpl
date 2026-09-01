@@ -129,6 +129,16 @@ public partial interface I<#= unitOfWorkName #> : Damara.IUnitOfWork, IDisposabl
     <#= domainServiceName #> <#= codeProvider.GetValidIdentifier(cls.Name) #>DomainService { get; }
 <#+
     }
+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService") && IsGenerated(c)).OrderBy(c => c.Name)) {
+      string entityName = codeProvider.GetValidIdentifier(cls.Name);
+      foreach (string capability in GetAllCapabilityNames(cls)) {
+        string capabilityDomainServiceName = GetCapabilityNamespace(cls, capability) + "." + entityName + capability + "CapabilityDomainService";
+#>
+    <#= capabilityDomainServiceName #> <#= entityName #><#= capability #>CapabilityDomainService { get; }
+<#+
+      }
+    }
 #>
 }
 <#+
@@ -238,6 +248,17 @@ public partial class <#= unitOfWorkName #> : Damara.EntityFramework.EntityFramew
 #>
     <#= domainServiceClassName #> I<#= unitOfWorkName #>.<#= domainServicePropertyName #> => field ??= new <#= domainServiceClassName #>(this);
 <#+
+    }
+
+    foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService") && IsGenerated(c)).OrderBy(c => c.Name)) {
+      string entityName = codeProvider.GetValidIdentifier(cls.Name);
+      foreach (string capability in GetAllCapabilityNames(cls)) {
+        string capabilityDomainServiceClassName = GetCapabilityNamespace(cls, capability) + "." + entityName + capability + "CapabilityDomainService";
+        string capabilityDomainServicePropertyName = entityName + capability + "CapabilityDomainService";
+#>
+    <#= capabilityDomainServiceClassName #> I<#= unitOfWorkName #>.<#= capabilityDomainServicePropertyName #> => field ??= new <#= capabilityDomainServiceClassName #>(this);
+<#+
+      }
     }
 #>
 
@@ -958,6 +979,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 
       string entityTypeName = GetEmittedNamespace(cls) + "." + codeProvider.GetValidIdentifier(cls.Name);
       bool generateValidators = (bool)cls.GetProperty("GenerateValidator");
+      bool generateDomainServices = (bool)cls.GetProperty("GenerateDomainService");
 
       foreach (var capabilityPair in capabilities.OrderBy(p => p.Key, StringComparer.Ordinal)) {
         string capability = capabilityPair.Key;
@@ -969,6 +991,8 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         GenerateCapabilityClass(cls, capability, members, _namespace, capabilityOutput, entityTypeName);
         if (generateValidators)
           GenerateCapabilityValidator(cls, capability, members, _namespace, capabilityOutput, unitOfWorkName, unitOfWorkNamespace);
+        if (generateDomainServices)
+          GenerateCapabilityDomainService(cls, capability, _namespace, capabilityOutput, unitOfWorkName, unitOfWorkNamespace);
       }
 
       foreach (var capableClass in capableClasses.OrderBy(p => p.Key, StringComparer.Ordinal)) {
@@ -1005,6 +1029,19 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
       map[className] = capabilityNames;
     }
     return map;
+  }
+
+  // Method GetAllCapabilityNames
+  // Every capability of the class: tagged members plus capabilities referenced
+  // only by a capable class, ordered for deterministic output.
+  private List<string> GetAllCapabilityNames(EntityClass cls) {
+    var names = GetCapabilityMembers(cls).Keys.ToList();
+    foreach (var capableClass in GetCapableClasses(cls))
+      foreach (string capability in capableClass.Value)
+        if (!names.Contains(capability))
+          names.Add(capability);
+    names.Sort(StringComparer.Ordinal);
+    return names;
   }
 
   // Method GetCapabilityMemberName
@@ -1235,6 +1272,49 @@ internal partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
     }
 
     partial void OnCreated();
+}
+<#+
+    output.PopOutputRedirection();
+  }
+
+  // Method GenerateCapabilityDomainService
+  // The capability domain service: capability-scoped operations needing the
+  // unit of work (factories, repositories, lookups), keeping the entity's
+  // domain service uncluttered. Exposed on the unit of work as
+  // {Entity}{Capability}CapabilityDomainService.
+  private void GenerateCapabilityDomainService(EntityClass cls, string capability, string _namespace, OutputInfo capabilityOutput, string unitOfWorkName, string unitOfWorkNamespace) {
+    string entityName = codeProvider.GetValidIdentifier(cls.Name);
+    string domainServiceClassName = entityName + capability + "CapabilityDomainService";
+    output.Extension = ".cs";
+    output.PushOutputRedirection(capabilityOutput, "", domainServiceClassName, OverwriteMode.None);
+#>
+namespace <#= _namespace #>;
+
+/// <summary>
+/// Domain service for the <#= capability #> capability of the <#= entityName #> aggregate.
+/// </summary>
+public partial class <#= domainServiceClassName #>
+{
+}
+<#+
+    output.PopOutputRedirection();
+
+    output.PushOutputRedirection(capabilityOutput, domainServiceClassName, domainServiceClassName + ".Generated");
+    GenerateFileHeader(true);
+#>
+
+namespace <#= _namespace #>;
+
+public partial class <#= domainServiceClassName #> : Damara.DomainServiceBase<<#= unitOfWorkNamespace #>.I<#= unitOfWorkName #>>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="<#= domainServiceClassName #>"/> class.
+    /// </summary>
+    /// <param name="unitOfWork">The unit of work.</param>
+    internal <#= domainServiceClassName #>(<#= unitOfWorkNamespace #>.I<#= unitOfWorkName #> unitOfWork)
+        : base(unitOfWork)
+    {
+    }
 }
 <#+
     output.PopOutputRedirection();
