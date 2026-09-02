@@ -2647,7 +2647,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
         }
 #>
                     if (returnValueParameter.Value != null && !(returnValueParameter.Value is System.DBNull))
-                        result = (<#= nonNullableResultType #>)Convert.ChangeType(returnValueParameter.Value, typeof(<#= nonNullableResultType #>));
+                        result = <#= GetReaderValueExpression("returnValueParameter.Value", nonNullableResultType, nonNullableResultType) #>;
                     else
                         result = default(<#= resultType #>);
 <#+
@@ -2687,14 +2687,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
               if (res.Properties.Count(p => !p.IsComplexType) == 1) {
 #>
                             if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
-                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= propertyType #>));
+                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = <#= GetReaderValueExpression(readerVar + ".GetValue(0)", propertyType, propertyType) #>;
                             else
 <#+
               }
               if (!string.IsNullOrEmpty(columnName)) {
 #>
                             if (fieldNames.Contains(@"<#= codeProvider.GetQuotedString(columnName) #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
-                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= propertyType #>));
+                                resultRow.<#= codeProvider.GetValidIdentifier(prop.Name) #> = <#= GetReaderValueExpression(readerVar + ".GetValue(" + readerVar + ".GetOrdinal(@\"" + codeProvider.GetQuotedString(columnName) + "\"))", propertyType, propertyType) #>;
 <#+
                 if (prop.Nullable) {
 #>
@@ -2725,7 +2725,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 #>
 
                     if (<#= cmdVar #>.Parameters["<#= argumentName #>"].Value != null && !(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value is System.DBNull))
-                        <#= argumentName #> = (<#= typeName #>)Convert.ChangeType(<#= cmdVar #>.Parameters["<#= argumentName #>"].Value, typeof(<#= typeName #>));
+                        <#= argumentName #> = <#= GetReaderValueExpression(cmdVar + ".Parameters[\"" + argumentName + "\"].Value", typeName, typeName) #>;
                     else
                         <#= argumentName #> = default(<#= typeName #>);
 <#+
@@ -2865,13 +2865,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       if (prop.ParentClass.Properties.Count(p => !p.IsComplexType) == 1) {
 #>
                             if (fieldNames.Length == 1 && string.IsNullOrEmpty(fieldNames[0]))
-                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(0), typeof(<#= actualColumnType #>));
+                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = <#= GetReaderValueExpression(readerVar + ".GetValue(0)", propertyType, actualColumnType) #>;
                             else
 <#+
       }
 #>
                             if (fieldNames.Contains("<#= columnName #>") && !<#= readerVar #>.IsDBNull(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")))
-                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = (<#= propertyType #>)Convert.ChangeType(<#= readerVar #>.GetValue(<#= readerVar #>.GetOrdinal(@"<#= codeProvider.GetQuotedString(columnName) #>")), typeof(<#= actualColumnType #>));
+                                row.<#= namePrefix + codeProvider.GetValidIdentifier(prop.Name) #> = <#= GetReaderValueExpression(readerVar + ".GetValue(" + readerVar + ".GetOrdinal(@\"" + codeProvider.GetQuotedString(columnName) + "\"))", propertyType, actualColumnType) #>;
 <#+
       if (prop.Nullable) {
 #>
@@ -3952,6 +3952,20 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
       propertyAccess = codeProvider.FormatMemberAccess(propertySetter);
       getAccess = codeProvider.FormatMemberAccess(propertyGetter) + " ";
     }
+  }
+
+  // Method GetReaderValueExpression
+  // Materialises a reader/parameter value into a CLR type. Convert.ChangeType cannot
+  // target DateOnly or TimeOnly (neither implements IConvertible): a date column arrives
+  // as DateTime and a time column as TimeSpan, so those two convert explicitly.
+  // castType is the property type, convertType the type Convert.ChangeType targets
+  // (the enum's underlying type for enum properties; otherwise the same type).
+  private string GetReaderValueExpression(string valueExpression, string castType, string convertType) {
+    if (convertType == "DateOnly" || convertType == "System.DateOnly")
+      return "DateOnly.FromDateTime((System.DateTime)" + valueExpression + ")";
+    if (convertType == "TimeOnly" || convertType == "System.TimeOnly")
+      return "TimeOnly.FromTimeSpan((System.TimeSpan)" + valueExpression + ")";
+    return "(" + castType + ")Convert.ChangeType(" + valueExpression + ", typeof(" + convertType + "))";
   }
 
   private string GetServerType(string providerName, string serverType, object propertyType, int maxLength, int precision, int scale) {
