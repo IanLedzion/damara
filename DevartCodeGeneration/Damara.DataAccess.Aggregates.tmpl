@@ -1079,6 +1079,53 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
     return relationProperty == null || relationProperty.Multiplicity != Multiplicity.Many;
   }
 
+  // Method GetCapabilityMemberAccess
+  // Carries the entity member's accessibility onto the capability members: the
+  // property-level modifier is the less restrictive accessor's and the other
+  // accessor carries its own when they differ (the entity template's rule).
+  private void GetCapabilityMemberAccess(object member, out string propertyAccess, out string getAccess, out string setAccess) {
+    MemberAccess getter = MemberAccess.Public;
+    MemberAccess setter = MemberAccess.Public;
+    var property = member as EntityProperty;
+    if (property != null) {
+      getter = property.GetterModifier;
+      setter = property.SetterModifier;
+    }
+    var relationProperty = member as EntityRelationProperty;
+    if (relationProperty != null) {
+      getter = relationProperty.GetterModifier;
+      setter = relationProperty.SetterModifier;
+    }
+    if (!IsCapabilityMemberSettable(member))
+      setter = getter;
+
+    getAccess = string.Empty;
+    setAccess = string.Empty;
+    if ((int)getter < (int)setter) {
+      propertyAccess = codeProvider.FormatMemberAccess(getter);
+      setAccess = codeProvider.FormatMemberAccess(setter) + " ";
+    }
+    else if (getter == setter) {
+      propertyAccess = codeProvider.FormatMemberAccess(getter);
+    }
+    else {
+      propertyAccess = codeProvider.FormatMemberAccess(setter);
+      getAccess = codeProvider.FormatMemberAccess(getter) + " ";
+    }
+  }
+
+  // Method IsCapabilityMemberPublic
+  // A member with any non-public accessor is implemented explicitly by the
+  // definition, since C# forbids implicit implementation of non-public
+  // interface members.
+  private bool IsCapabilityMemberPublic(object member) {
+    string propertyAccess;
+    string getAccess;
+    string setAccess;
+    GetCapabilityMemberAccess(member, out propertyAccess, out getAccess, out setAccess);
+    return propertyAccess == "public" && getAccess.Length == 0 && setAccess.Length == 0;
+  }
+
   // Method GenerateCapabilityInterface
   private void GenerateCapabilityInterface(EntityClass cls, string capability, List<object> members, string _namespace, OutputInfo capabilityOutput, string entityTypeName) {
     string rootFileName = "I" + capability + "Capability";
@@ -1111,10 +1158,15 @@ public partial interface I<#= capability #>Capability
     foreach (object member in members) {
       string memberName = GetCapabilityMemberName(member);
       string memberType = GetCapabilityMemberType(member, _namespace);
-      string accessors = IsCapabilityMemberSettable(member) ? "{ get; set; }" : "{ get; }";
+      string propertyAccess;
+      string getAccess;
+      string setAccess;
+      GetCapabilityMemberAccess(member, out propertyAccess, out getAccess, out setAccess);
+      string memberAccess = propertyAccess == "public" ? string.Empty : propertyAccess + " ";
+      string accessors = IsCapabilityMemberSettable(member) ? "{ " + getAccess + "get; " + setAccess + "set; }" : "{ " + getAccess + "get; }";
 #>
     /// <summary>Gets or sets the <#= memberName #>.</summary>
-    <#= memberType #> <#= memberName #> <#= accessors #>
+    <#= memberAccess #><#= memberType #> <#= memberName #> <#= accessors #>
 
 <#+
     }
@@ -1180,14 +1232,18 @@ internal partial class <#= capability #>Capability
     foreach (object member in members) {
       string memberName = GetCapabilityMemberName(member);
       string memberType = GetCapabilityMemberType(member, _namespace);
+      string propertyAccess;
+      string getAccess;
+      string setAccess;
+      GetCapabilityMemberAccess(member, out propertyAccess, out getAccess, out setAccess);
       if (IsCapabilityMemberSettable(member)) {
 #>
 
     /// <summary>Gets or sets the <#= memberName #>.</summary>
-    public <#= memberType #> <#= memberName #>
+    <#= propertyAccess #> <#= memberType #> <#= memberName #>
     {
-        get => this.<#= entityName #>.<#= memberName #>;
-        set
+        <#= getAccess #>get => this.<#= entityName #>.<#= memberName #>;
+        <#= setAccess #>set
         {
             if (this.<#= entityName #>.<#= memberName #> == value)
             {
@@ -1205,7 +1261,7 @@ internal partial class <#= capability #>Capability
 #>
 
     /// <summary>Gets the <#= memberName #>.</summary>
-    public <#= memberType #> <#= memberName #> => this.<#= entityName #>.<#= memberName #>;
+    <#= propertyAccess #> <#= memberType #> <#= memberName #> => this.<#= entityName #>.<#= memberName #>;
 <#+
       }
     }
@@ -1421,7 +1477,9 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
       string owningProperty = capabilityProperties[memberOwner.Value];
       string memberName = GetCapabilityMemberName(member);
       string memberType = GetCapabilityMemberType(member, _namespace);
-      if (IsCapabilityMemberSettable(member)) {
+      string interfaceName = GetCapabilityNamespace(cls, memberOwner.Value) + ".I" + memberOwner.Value + "Capability";
+      bool isPublic = IsCapabilityMemberPublic(member);
+      if (IsCapabilityMemberSettable(member) && isPublic) {
 #>
 
     /// <summary>Gets or sets the <#= memberName #>.</summary>
@@ -1432,11 +1490,29 @@ public sealed partial class <#= definitionName #> : <#= codeProvider.Join(", ", 
     }
 <#+
       }
-      else {
+      else if (IsCapabilityMemberSettable(member)) {
+#>
+
+    /// <summary>Gets or sets the <#= memberName #>.</summary>
+    <#= memberType #> <#= interfaceName #>.<#= memberName #>
+    {
+        get => this.<#= owningProperty #>.<#= memberName #>;
+        set => this.<#= owningProperty #>.<#= memberName #> = value;
+    }
+<#+
+      }
+      else if (isPublic) {
 #>
 
     /// <summary>Gets the <#= memberName #>.</summary>
     public <#= memberType #> <#= memberName #> => this.<#= owningProperty #>.<#= memberName #>;
+<#+
+      }
+      else {
+#>
+
+    /// <summary>Gets the <#= memberName #>.</summary>
+    <#= memberType #> <#= interfaceName #>.<#= memberName #> => this.<#= owningProperty #>.<#= memberName #>;
 <#+
       }
     }
