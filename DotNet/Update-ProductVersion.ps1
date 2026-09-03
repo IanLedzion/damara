@@ -46,6 +46,8 @@ function UpdateNode {
   }
 }
 
+Write-Host 'Updating the product version' -ForegroundColor Cyan
+
 # Main script
 $configFileName = Join-Path $PSScriptRoot ReleaseConfig.xml
 $config = [xml](Get-Content -Path ($configFileName))
@@ -111,21 +113,21 @@ else {
 
 $config.Save($configFileName)
 
-"Updated product versions. New versions are:"
-"Version: $($config.Config.ProjectProperties.Version)"
-"AssemblyVersion: $($config.Config.ProjectProperties.AssemblyVersion)"
-"FileVersion: $($config.Config.ProjectProperties.FileVersion)"
-"PublishImageTag: $($config.Config.PublishProperties.PublishImageTag)"
+Write-Host 'Updated product versions. New versions are:' -ForegroundColor Green
+Write-Host "  Version         : $($config.Config.ProjectProperties.Version)"
+Write-Host "  AssemblyVersion : $($config.Config.ProjectProperties.AssemblyVersion)"
+Write-Host "  FileVersion     : $($config.Config.ProjectProperties.FileVersion)"
+Write-Host "  PublishImageTag : $($config.Config.PublishProperties.PublishImageTag)"
 
 # Read CSPROJ files
-'Getting *.csproj'
+Write-Host 'Getting *.csproj' -ForegroundColor Cyan
 $csprojFiles = Get-ChildItem -Path "$PSScriptRoot\*.csproj" -File -Recurse -Depth 0
 foreach ($file in $csprojFiles) {
   if ($file.Name.EndsWith('- Backup.csproj')) {
     continue
   }
 
-  $file.FullName
+  Write-Host "  $($file.FullName)"
 
   $doc = [System.Xml.XmlDocument]::new()
   $doc.PreserveWhitespace = $true
@@ -142,10 +144,10 @@ foreach ($file in $csprojFiles) {
 }
 
 # Read PUBXML files
-'Getting *.pubxml'
+Write-Host 'Getting *.pubxml' -ForegroundColor Cyan
 $pubxmlFiles = Get-ChildItem -Path "$PSScriptRoot\*.pubxml" -File -Recurse -Depth 0
 foreach ($file in $pubxmlFiles) {
-  $file.FullName
+  Write-Host "  $($file.FullName)"
 
   $doc = [System.Xml.XmlDocument]::new()
   $doc.PreserveWhitespace = $true
