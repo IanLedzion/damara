@@ -1,5 +1,5 @@
 ﻿// <copyright file="ServiceJobActivatorScope.cs" company="Ian Ledzion.">
-// Copyright © Ian Ledzion. All rights reserved.
+// Copyright (c) Ian Ledzion. All rights reserved.
 // </copyright>
 
 using Hangfire;
@@ -37,5 +37,18 @@ public class ServiceJobActivatorScope : JobActivatorScope
     public override object Resolve(Type type)
     {
         return this.serviceScope.ServiceProvider.GetService(type);
+    }
+
+    /// <summary>
+    /// Disposes the service scope once Hangfire has finished performing the job.
+    /// </summary>
+    /// <remarks>
+    /// The base implementation is empty, so without this override the per-job scope, and every scoped service in it, outlived
+    /// the job. In NsaGarantie that kept each job's unit of work registered in the static <c>UnitOfWorkDescriptor</c> registry
+    /// for the life of the process, which grew the background job server's heap to its limit every two to three days.
+    /// </remarks>
+    public override void DisposeScope()
+    {
+        this.serviceScope.Dispose();
     }
 }
