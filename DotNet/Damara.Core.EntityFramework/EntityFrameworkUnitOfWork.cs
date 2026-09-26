@@ -98,7 +98,13 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
         .OfType<EntityBase>();
 
     /// <summary>
-    /// Saves the changes.
+    /// Saves the changes inside one database transaction: EF writes the changes, then
+    /// <see cref="UnitOfWorkBase.BeforeCommitChanges"/> handlers make their own writes, then the
+    /// transaction commits. EF accepts its changes only after the commit, so after a failure the
+    /// change tracker still holds every change and the save can be retried. When the caller already
+    /// runs a database transaction (or an ambient one), the save joins it and leaves the commit to
+    /// the caller. The transaction runs under the context's execution strategy, so a retrying
+    /// strategy may repeat the whole unit, handlers included.
     /// </summary>
     protected override void SaveChangesCore()
     {
@@ -106,7 +112,24 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
 
         try
         {
-            this.Context.SaveChanges();
+            var database = this.Context.Database;
+            if (database.CurrentTransaction is not null || System.Transactions.Transaction.Current is not null)
+            {
+                this.Context.SaveChanges(acceptAllChangesOnSuccess: false);
+                this.RaiseBeforeCommitChanges();
+            }
+            else
+            {
+                database.CreateExecutionStrategy().Execute(() =>
+                {
+                    using var transaction = database.BeginTransaction();
+                    this.Context.SaveChanges(acceptAllChangesOnSuccess: false);
+                    this.RaiseBeforeCommitChanges();
+                    transaction.Commit();
+                });
+            }
+
+            this.Context.ChangeTracker.AcceptAllChanges();
         }
         catch (Exception ex)
         {

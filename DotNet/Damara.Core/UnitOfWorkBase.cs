@@ -17,7 +17,9 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     private static int sequence = 0;
 
     private readonly WeakEventSource<BeforeSaveChangesArgs> beforeSaveChanges = new();
+    private readonly WeakEventSource<BeforeCommitChangesArgs> beforeCommitChanges = new();
     private readonly WeakEventSource<AfterSaveChangesArgs> afterSaveChanges = new();
+    private readonly WeakEventSource<SaveChangesFailedArgs> saveChangesFailed = new();
     private readonly WeakEventSource<BeforeCancelChangesArgs> beforeCancelChanges = new();
     private readonly WeakEventSource<AfterCancelChangesArgs> afterCancelChanges = new();
 
@@ -40,9 +42,22 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     public event EventHandler<BeforeSaveChangesArgs> BeforeSaveChanges { add => this.beforeSaveChanges.Subscribe(value); remove => this.beforeSaveChanges.Unsubscribe(value); }
 
     /// <summary>
+    /// Occurs inside the store's transaction, after the changes are written and before they are
+    /// committed. Writes made by a handler commit or roll back together with the changes; under a
+    /// retrying execution strategy a handler can run more than once for one save.
+    /// </summary>
+    public event EventHandler<BeforeCommitChangesArgs> BeforeCommitChanges { add => this.beforeCommitChanges.Subscribe(value); remove => this.beforeCommitChanges.Unsubscribe(value); }
+
+    /// <summary>
     /// Occurs after changes are saved.
     /// </summary>
     public event EventHandler<AfterSaveChangesArgs> AfterSaveChanges { add => this.afterSaveChanges.Subscribe(value); remove => this.afterSaveChanges.Unsubscribe(value); }
+
+    /// <summary>
+    /// Occurs when a save failed and was rolled back, before the exception reaches the caller.
+    /// Handlers restore whatever they set aside in <see cref="BeforeSaveChanges"/>.
+    /// </summary>
+    public event EventHandler<SaveChangesFailedArgs> SaveChangesFailed { add => this.saveChangesFailed.Subscribe(value); remove => this.saveChangesFailed.Unsubscribe(value); }
 
     /// <summary>
     /// Occurs before changes are cancelled.
@@ -77,8 +92,17 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     /// </summary>
     public void SaveChanges()
     {
-        this.beforeSaveChanges?.Raise(this, new BeforeSaveChangesArgs());
-        this.SaveChangesCore();
+        try
+        {
+            this.beforeSaveChanges?.Raise(this, new BeforeSaveChangesArgs());
+            this.SaveChangesCore();
+        }
+        catch (Exception ex)
+        {
+            this.saveChangesFailed?.Raise(this, new SaveChangesFailedArgs(ex));
+            throw;
+        }
+
         this.afterSaveChanges?.Raise(this, new AfterSaveChangesArgs());
     }
 
@@ -194,9 +218,19 @@ public abstract class UnitOfWorkBase : IDisposable, IUnitOfWork
     }
 
     /// <summary>
-    /// Core save changes method.
+    /// Core save changes method. Implementations raise <see cref="BeforeCommitChanges"/> through
+    /// <see cref="RaiseBeforeCommitChanges"/> once the changes are written and before they commit.
     /// </summary>
     protected abstract void SaveChangesCore();
+
+    /// <summary>
+    /// Raises <see cref="BeforeCommitChanges"/>; called by <see cref="SaveChangesCore"/> inside the
+    /// store's transaction.
+    /// </summary>
+    protected void RaiseBeforeCommitChanges()
+    {
+        this.beforeCommitChanges?.Raise(this, new BeforeCommitChangesArgs());
+    }
 
     /// <summary>
     /// Core cancel changes method.

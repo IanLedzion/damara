@@ -2485,6 +2485,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
                 {
                     if (this.Database.GetCommandTimeout().HasValue)
                         <#= cmdVar #>.CommandTimeout = this.Database.GetCommandTimeout().Value;
+                    if (this.Database.CurrentTransaction != null)
+                        <#= cmdVar #>.Transaction = Microsoft.EntityFrameworkCore.Storage.DbContextTransactionExtensions.GetDbTransaction(this.Database.CurrentTransaction);
 <#+
     if (!string.IsNullOrEmpty(method.Procedure) && !method.TableValuedFunction) {
 #>
