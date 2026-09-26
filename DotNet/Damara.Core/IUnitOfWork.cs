@@ -15,9 +15,22 @@ public interface IUnitOfWork
     public event EventHandler<BeforeSaveChangesArgs> BeforeSaveChanges;
 
     /// <summary>
+    /// Occurs inside the store's transaction, after the changes are written and before they are
+    /// committed. Writes made by a handler commit or roll back together with the changes; under a
+    /// retrying execution strategy a handler can run more than once for one save.
+    /// </summary>
+    public event EventHandler<BeforeCommitChangesArgs> BeforeCommitChanges;
+
+    /// <summary>
     /// Occurs after changes are saved.
     /// </summary>
     public event EventHandler<AfterSaveChangesArgs> AfterSaveChanges;
+
+    /// <summary>
+    /// Occurs when a save failed and was rolled back, before the exception reaches the caller.
+    /// Handlers restore whatever they set aside in <see cref="BeforeSaveChanges"/>.
+    /// </summary>
+    public event EventHandler<SaveChangesFailedArgs> SaveChangesFailed;
 
     /// <summary>
     /// Occurs before changes are cancelled.
