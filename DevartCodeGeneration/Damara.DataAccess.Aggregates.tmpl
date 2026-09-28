@@ -383,14 +383,14 @@ namespace <#= _namespace #>;
 
       if (cls.AllProperties.Any(p => p.PrimaryKey)) {
         List<string> lst = new List<string>();
-        foreach (EntityProperty prop in cls.AllProperties.Where(p => p.PrimaryKey)) {
+        foreach (EntityProperty prop in cls.AllProperties.Where(p => p.PrimaryKey).GroupBy(p => p.Name).Select(g => g.First())) {
           string propertyDataType = GetPropertyType(prop, _namespace);
           lst.Add(string.Format("{0} {1}", propertyDataType, FirstCharToLowerCase(prop.Name)));
         }
 #>
 <#+
         List<string> condition = new List<string>();
-        foreach (Property prop in cls.AllProperties.Where(p => p.PrimaryKey))
+        foreach (Property prop in cls.AllProperties.Where(p => p.PrimaryKey).GroupBy(p => p.Name).Select(g => g.First()))
           condition.Add(string.Format("e.{0} == {1}", prop.Name, FirstCharToLowerCase(prop.Name)));
 #>
     /// <summary>
@@ -605,7 +605,7 @@ public partial class <#= cls.Name #>DomainService : Damara.DomainServiceBase<<#=
       if (HasDescendents(cls)) {
         validatorGenericArguments = string.Format("<T{0}>", cls.Name);
         validatorGenericCrefName = string.Format("{{T{0}}}", cls.Name);
-        validatorGenericConstraints = string.Format("where T{0} : {0}", cls.Name);
+        validatorGenericConstraints = string.Format("where T{0} : {1}", cls.Name, fullClassName);
       }
 
       string validatorBaseClassName = null;
@@ -613,7 +613,7 @@ public partial class <#= cls.Name #>DomainService : Damara.DomainServiceBase<<#=
 
       if (cls.BaseInheritance == null) {
         if (HasDescendents(cls)) {
-          validatorBaseClassName = string.Format("Damara.EntityValidator<T{0}, {1}>", unitOfWorkName, cls.Name);
+          validatorBaseClassName = string.Format("Damara.EntityValidator<{0}.I{1}, T{2}>", unitOfWorkNamespace, unitOfWorkName, cls.Name);
           validatorCtorVisibility = "protected";
         }
         else {
@@ -622,12 +622,13 @@ public partial class <#= cls.Name #>DomainService : Damara.DomainServiceBase<<#=
         }
       }
       else {
+        string baseValidatorNamespace = GetKindNamespace((EntityClass)cls.BaseInheritance.BaseClass, "Validation");
         if (HasDescendents(cls)) {
-          validatorBaseClassName = string.Format("{0}Validator<{1}>", cls.BaseInheritance.BaseClass.Name, cls.Name);
+          validatorBaseClassName = string.Format("{0}.{1}Validator<T{2}>", baseValidatorNamespace, cls.BaseInheritance.BaseClass.Name, cls.Name);
           validatorCtorVisibility = "protected";
         }
         else {
-          validatorBaseClassName = string.Format("{0}Validator<{1}>", cls.BaseInheritance.BaseClass.Name, cls.Name);
+          validatorBaseClassName = string.Format("{0}.{1}Validator<{2}>", baseValidatorNamespace, cls.BaseInheritance.BaseClass.Name, fullClassName);
           validatorCtorVisibility = "public";
         }
       }
@@ -663,7 +664,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         : base(unitOfWork)
     {
 <#+
-      GenerateValidationRules(cls, GetValidationProperties(cls.Properties.OfType<EntityProperty>()));
+      GenerateValidationRules(cls, GetValidationProperties(cls.Properties.OfType<EntityProperty>().Where(p => cls.BaseInheritance == null || !p.PrimaryKey)));
 #>
 
         this.OnCreated();

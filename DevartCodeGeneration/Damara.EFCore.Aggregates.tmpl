@@ -552,7 +552,7 @@ namespace <#= _namespace.Key #>;
       if (PropertyChangeNotifiers || PropertyChangePartialMethods) {
         // Class fields
         foreach (EntityProperty property in cls.Properties) {
-          if (!property.Shadow) {
+          if (!property.Shadow && !IsInheritedKey(cls, property)) {
 #>
 
     private <#= GetPropertyTypeName(property, _namespace.Key, defaultNamespace) #> _<#= property.Name #>;
@@ -598,7 +598,7 @@ namespace <#= _namespace.Key #>;
     {
 <#
         foreach (EntityProperty property in cls.Properties) {
-          if (!property.Shadow) {
+          if (!property.Shadow && !IsInheritedKey(cls, property)) {
             string propertyName = (!PropertyChangeNotifiers && !PropertyChangePartialMethods) ? codeProvider.GetValidIdentifier(property.Name) : "_" + property.Name;
             if (property.IsComplexType) {
               string nspace = GetEmittedNamespace((EntityComplexType)property.Type);
@@ -699,7 +699,7 @@ namespace <#= _namespace.Key #>;
 
       // Class properties
       foreach (EntityProperty property in cls.Properties) {
-        if (!property.Shadow) {
+        if (!property.Shadow && !IsInheritedKey(cls, property)) {
           if (!(bool)property.GetProperty("DoNotGenerateDataMemberAttribute"))
             propertyCounter++;
           GenerateProperty(property, propertyCounter, PropertyChangeNotifiers, _namespace.Key, serverInfo, cls.InheritanceModifier == ClassInheritanceModifier.Sealed);
@@ -1337,6 +1337,15 @@ global using Microsoft.Extensions.Configuration;
 
   //////////////////////////////////////////////////////////////////////////////////
   //
+  // Method IsInheritedKey
+  // Entity Developer lists a derived class's key column (the joined table's key in TPT) among the
+  // derived class's own properties. The key belongs to the root class, so a derived class must not
+  // declare, map or key it again (EF Core rejects a key on a derived type).
+  private bool IsInheritedKey(object type, EntityProperty property) {
+    Class cls = type as Class;
+    return cls != null && cls.BaseInheritance != null && property.PrimaryKey;
+  }
+
   // Method GenerateFileHeader()
   // Comments and namespaces for each generated file.
   //
@@ -1991,7 +2000,7 @@ global using Microsoft.Extensions.Configuration;
     if (PropertyChangePartialMethods) {
       string defaultNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
       foreach (EntityProperty property in type.Properties) {
-        if (!(bool)property.Shadow) {
+        if (!(bool)property.Shadow && !IsInheritedKey(type, property)) {
 #>
 <#+
           if (GenerateDummyComments) {
@@ -3193,7 +3202,7 @@ global using Microsoft.Extensions.Configuration;
 
     // properties
     foreach (EntityProperty prop in cls.Properties) {
-      if (!((bool)prop.GetProperty("DoNotGenerateMapping"))) {
+      if (!((bool)prop.GetProperty("DoNotGenerateMapping")) && !IsInheritedKey(cls, prop)) {
         if (!prop.IsComplexType) {
           GenerateEntityMapping(cls, contextNamespace);
           #>.<#+
@@ -3212,7 +3221,7 @@ global using Microsoft.Extensions.Configuration;
     }
 
     // primary key
-    string pkFields = string.Join(", ", cls.Properties.Where(p => p.PrimaryKey).OfType<EntityProperty>().OrderBy(p => p.PrimaryKeyIndex).Select(p => "@\"" + p.Name + "\"").ToArray());
+    string pkFields = string.Join(", ", cls.Properties.Where(p => p.PrimaryKey).OfType<EntityProperty>().Where(p => !IsInheritedKey(cls, p)).OrderBy(p => p.PrimaryKeyIndex).Select(p => "@\"" + p.Name + "\"").ToArray());
     if (!string.IsNullOrEmpty(pkFields)) {
       GenerateEntityMapping(cls, contextNamespace);
       #>.HasKey(<#= pkFields #>);
