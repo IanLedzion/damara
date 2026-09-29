@@ -399,6 +399,19 @@ namespace <#= _namespace #>;
     /// <returns>A <#= cls.Name #>, or null if none was found.</returns>
     public virtual <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>) => this.ObjectSet.SingleOrDefault(e => <#= codeProvider.Join(" && ", condition.ToArray()) #>);
 <#+
+        List<Property> keys = cls.AllProperties.Where(p => p.PrimaryKey).GroupBy(p => p.Name).Select(g => g.First()).Cast<Property>().ToList();
+        if (keys.Count == 1) {
+          string keyType = GetPropertyType((EntityProperty)keys[0], _namespace);
+#>
+
+    /// <summary>
+    /// Gets the <#= cls.Name #> entities with the given identifiers; an identifier with no entity is left out.
+    /// </summary>
+    /// <param name="ids">The identifiers.</param>
+    /// <returns>The <#= cls.Name #> entities found, in no particular order.</returns>
+    public virtual IQueryable<<#= fullClassName #>> GetByIds(IEnumerable<<#= keyType #>> ids) => this.ObjectSet.Where(e => ids.Contains(e.<#= keys[0].Name #>));
+<#+
+        }
       }
 #>
 }
