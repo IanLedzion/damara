@@ -1,5 +1,5 @@
 ﻿// <copyright file="ServiceJobActivatorScope.cs" company="Ian Ledzion.">
-// Copyright (c) Ian Ledzion. All rights reserved.
+// Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
 using Hangfire;
