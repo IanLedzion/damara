@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+        The fixture model's generated code (Generated\, from Fixture.efml by Invoke-FixtureCodegen.ps1). It only has to
+        build: it is the regression check of the DevartCodeGeneration templates, not a library.
+    -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>Damara.Fixture</RootNamespace>
+        <IsPackable>false</IsPackable>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FluentValidation" Version="12.1.1" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="10.0.11" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Damara.Core.EntityFramework\Damara.Core.EntityFramework.csproj" />
+        <ProjectReference Include="..\Damara.Core\Damara.Core.csproj" />
+    </ItemGroup>
+
+</Project>

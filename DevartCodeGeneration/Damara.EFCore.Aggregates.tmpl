@@ -746,6 +746,29 @@ namespace <#= _namespace.Key #>;
 <#
       }
 
+      // the definition the entity was cast to, for the code that works on the entity but
+      // reads through the definition it is edited with (generated names and identifiers)
+      var castableClassNames = GetCapableClassNames(cls).ToList();
+      if (castableClassNames.Count > 0) {
+        string definitionBaseTypeName = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions." + codeProvider.GetValidIdentifier(cls.Name) + "DefinitionBase";
+#>
+
+    /// <summary>Gets the definition this entity was cast to, or null before it was cast.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    internal <#= definitionBaseTypeName #> CastDefinition => this.castedDefinition switch
+    {
+<#
+        foreach (string capableClassName in castableClassNames) {
+#>
+        nameof(<#= capableClassName #>Definition) => this.<#= capableClassName #>Definition,
+<#
+        }
+#>
+        _ => null,
+    };
+<#
+      }
+
       // ToString override from the property flagged with the ToString extended property
       var toStringProperties = cls.Properties.OfType<EntityProperty>().Where(p => (bool)p.GetProperty("ToString")).ToList();
       if (toStringProperties.Count > 1)
