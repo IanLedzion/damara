@@ -3,6 +3,7 @@
 // </copyright>
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Serilog;
 
 namespace Damara.EntityFramework;
@@ -155,21 +156,37 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
             .Where(x => x.State != EntityState.Unchanged)
             .ToList();
 
-        foreach (var entry in changedEntries)
+        // Detaching an added principal before its added dependent (a root and the row backing one of
+        // its capabilities) would sever a required relationship and throw while every entry goes anyway:
+        // no cascade or orphan handling while the changes are undone.
+        var tracker = this.Context.ChangeTracker;
+        var cascadeTiming = tracker.CascadeDeleteTiming;
+        var orphanTiming = tracker.DeleteOrphansTiming;
+        tracker.CascadeDeleteTiming = CascadeTiming.Never;
+        tracker.DeleteOrphansTiming = CascadeTiming.Never;
+        try
         {
-            switch (entry.State)
+            foreach (var entry in changedEntries)
             {
-                case EntityState.Modified:
-                    entry.CurrentValues.SetValues(entry.OriginalValues);
-                    entry.State = EntityState.Unchanged;
-                    break;
-                case EntityState.Added:
-                    entry.State = EntityState.Detached;
-                    break;
-                case EntityState.Deleted:
-                    entry.State = EntityState.Unchanged;
-                    break;
+                switch (entry.State)
+                {
+                    case EntityState.Modified:
+                        entry.CurrentValues.SetValues(entry.OriginalValues);
+                        entry.State = EntityState.Unchanged;
+                        break;
+                    case EntityState.Added:
+                        entry.State = EntityState.Detached;
+                        break;
+                    case EntityState.Deleted:
+                        entry.State = EntityState.Unchanged;
+                        break;
+                }
             }
+        }
+        finally
+        {
+            tracker.CascadeDeleteTiming = cascadeTiming;
+            tracker.DeleteOrphansTiming = orphanTiming;
         }
 
         Log.Verbose("Unit of work {UnitOfWorkType} changes cancelled", this.GetType().Name);
