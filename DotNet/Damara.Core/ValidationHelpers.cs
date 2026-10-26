@@ -52,7 +52,13 @@ public static class ValidationHelpers
                 ["ErrorMessage"] = failure.ErrorMessage,
             };
 
-            jFailure["AttemptedValue"] = failure.AttemptedValue is DateTime date ? (JToken)date.ToString("s") : (JToken)failure.AttemptedValue.ToString();
+            // A failure raised through AddError, or one whose property was null, carries no attempted value.
+            jFailure["AttemptedValue"] = failure.AttemptedValue switch
+            {
+                null => JValue.CreateNull(),
+                DateTime date => (JToken)date.ToString("s"),
+                var value => (JToken)value.ToString(),
+            };
 
             jErrors.Add(jFailure);
         }

@@ -121,4 +121,18 @@ public class ValidationHelpersTests
         result = validator.Validate(instance);
         Assert.AreEqual(0, result.InfoFailureCount(), "Valid instance should have 1 Info");
     }
+
+    [TestMethod]
+    public void SerialiseJsonErrorCodes_FailureWithoutAttemptedValue_SerialisesNull()
+    {
+        // AddError builds its failure from a property path and a message only, so AttemptedValue is null.
+        var failure = new FluentValidation.Results.ValidationFailure("Status", "Error Status");
+        var result = new FluentValidation.Results.ValidationResult(new[] { failure });
+
+        var json = JObject.Parse(result.SerialiseJsonErrorCodes());
+
+        var serialised = json["Failures"][0];
+        Assert.AreEqual("Status", serialised["PropertyName"], "Property name not serialised");
+        Assert.AreEqual(JTokenType.Null, serialised["AttemptedValue"].Type, "A missing attempted value should serialise as null rather than throw");
+    }
 }
