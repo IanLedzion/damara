@@ -1048,8 +1048,14 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   }
 
   // Method IsAggregateRoot
-  // An entity is the root of its aggregate when the aggregate carries its name.
+  // An entity is the root of its aggregate when its AggregateRoot extended
+  // property is set, or otherwise when the aggregate carries its name. The flag
+  // lets an aggregate be named apart from its root (Guarantees for Guarantee),
+  // so the aggregate namespace does not hide the root class's simple name.
   private bool IsAggregateRoot(EntityClass cls) {
+    object aggregateRoot = cls.GetProperty("AggregateRoot");
+    if (aggregateRoot is bool && (bool)aggregateRoot)
+      return true;
     return string.Equals(GetAggregateName(cls), codeProvider.GetValidIdentifier(cls.Name));
   }
 
