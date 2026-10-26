@@ -1,0 +1,40 @@
+@using Microsoft.AspNetCore.Components.Web
+@using global::Telerik.Blazor
+@using global::Telerik.Blazor.Components
+@inherits ErrorBoundaryBase
+
+@if (this.CurrentException == null)
+{
+    @this.ChildContent
+}
+else if (this.ChildContentFailed)
+{
+    <PageErrorMessage>
+        <Header>@this.Title</Header>
+        <Message>@this.Message</Message>
+    </PageErrorMessage>
+}
+
+@if (this.ShownException != null)
+{
+    <TelerikDialog Visible="true"
+                   Title="@this.Title"
+                   Width="@(this.ShowDiagnostics ? "800px" : "480px")"
+                   ShowCloseButton="false"
+                   CloseOnOverlayClick="false">
+        <DialogContent>
+            <p>@this.Message</p>
+            <p>@this.SupportMessage</p>
+            <p style="text-align: center;"><strong>@this.ErrorReference</strong></p>
+            @if (this.ShowDiagnostics)
+            {
+                <pre style="max-height: 40vh; overflow: auto; white-space: pre-wrap; font-size: 0.75rem;">@this.ShownException</pre>
+            }
+        </DialogContent>
+        <DialogButtons>
+            <TelerikButton OnClick="@this.Continue">@this.ContinueButtonText</TelerikButton>
+            <TelerikButton OnClick="@this.Reload"
+                           ThemeColor="@ThemeConstants.Button.ThemeColor.Primary">@this.ReloadButtonText</TelerikButton>
+        </DialogButtons>
+    </TelerikDialog>
+}

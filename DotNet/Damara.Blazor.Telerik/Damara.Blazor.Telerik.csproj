@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Version>5.0.0</Version>
+        <AssemblyVersion>5.0.0</AssemblyVersion>
+        <FileVersion>5.0.0</FileVersion>
+        <Company>Ian Ledzion</Company>
+        <Copyright>Copyright (c) Ian Ledzion 2015-2025</Copyright>
+        <AssemblyName>Damara.Blazor.Telerik</AssemblyName>
+        <RootNamespace>Damara.Blazor.Telerik</RootNamespace>
+        <PackageId>Damara.Blazor.Telerik</PackageId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Remove="Damara.Blazor.Telerik.csproj.vspscc" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Damara.Core\Damara.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Telerik.UI.for.Blazor" Version="15.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AdditionalFiles Include="..\stylecop.json" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <NoWarn>1701;1702;SA0001</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Update="stylecop1.json">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+</Project>
+
