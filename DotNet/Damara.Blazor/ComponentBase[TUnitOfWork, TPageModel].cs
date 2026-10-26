@@ -76,6 +76,39 @@ public abstract class ComponentBase<TUnitOfWork, TPageModel> : OwningComponentBa
     }
 
     /// <summary>
+    /// Replaces a child page model, such as the one behind a dialog, disposing the one it replaces.
+    /// A subscribing page model handles every save and cancel of the component's unit of work until
+    /// it is disposed, so one that is merely overwritten keeps acting on later, unrelated saves.
+    /// </summary>
+    /// <typeparam name="TChildPageModel">The type of the child page model.</typeparam>
+    /// <param name="current">The child page model held now, if any.</param>
+    /// <param name="replacement">The child page model to hold instead.</param>
+    /// <returns>The replacement, to assign to the property that holds the child page model.</returns>
+    protected TChildPageModel ReplaceChildPageModel<TChildPageModel>(TChildPageModel current, TChildPageModel replacement)
+        where TChildPageModel : class, IDisposable
+    {
+        if (!ReferenceEquals(current, replacement))
+        {
+            current?.Dispose();
+        }
+
+        return replacement;
+    }
+
+    /// <summary>
+    /// Releases a child page model the component has finished with, such as the one behind a dialog
+    /// that has closed, disposing it so it stops handling the unit of work's save and cancel events.
+    /// </summary>
+    /// <typeparam name="TChildPageModel">The type of the child page model.</typeparam>
+    /// <param name="current">The child page model held now, if any.</param>
+    /// <returns><c>null</c>, to assign to the property that holds the child page model.</returns>
+    protected TChildPageModel ReleaseChildPageModel<TChildPageModel>(TChildPageModel current)
+        where TChildPageModel : class, IDisposable
+    {
+        return this.ReplaceChildPageModel(current, null);
+    }
+
+    /// <summary>
     /// Saves the changes.
     /// </summary>
     protected void SaveChanges()

@@ -9,7 +9,7 @@ namespace Damara;
 /// Provides a base class for all service types.
 /// </summary>
 /// <typeparam name="TUnitOfWork">The type of the unit of work.</typeparam>
-public abstract class ServiceBase<TUnitOfWork> : LoggableBase
+public abstract class ServiceBase<TUnitOfWork> : LoggableBase, IDisposable
     where TUnitOfWork : IUnitOfWork
 {
     private bool disposed;
