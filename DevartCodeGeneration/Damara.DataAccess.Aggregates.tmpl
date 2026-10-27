@@ -468,13 +468,23 @@ namespace <#= _namespace #>;
         foreach (EntityProperty property in baseClass.Properties.Where(prop => (bool)prop.GetProperty("GenerateFactoryParameter"))) {
           var propDefaultValue = (string)property.GetProperty("DefaultValue");
           createParameters.Add(GetPropertyParameterType(property, _namespace) + " " + FirstCharToLowerCase(property.Name));
+          // A parameter left out keeps what the entity already holds (a change handler may have set it while an
+          // earlier member was assigned) and falls back to the initial value only while the member is still empty.
           if (GetPropertyIsValueType(property)) {
-            var defaultValue = string.IsNullOrEmpty(propDefaultValue) ? ("default(" + GetPropertyType(property, _namespace) + ")") : propDefaultValue;
-            setStatements.Add(string.Format("entity.{0} = {1}.HasValue ? {1}.Value : {2}", property.Name, FirstCharToLowerCase(property.Name), defaultValue));
+            if (string.IsNullOrEmpty(propDefaultValue))
+              setStatements.Add(string.Format("entity.{0} = {1}.HasValue ? {1}.Value : entity.{0}", property.Name, FirstCharToLowerCase(property.Name)));
+            else
+              setStatements.Add(string.Format("entity.{0} = {1}.HasValue ? {1}.Value : (entity.{0} == default ? {2} : entity.{0})", property.Name, FirstCharToLowerCase(property.Name), propDefaultValue));
+          }
+          else if (GetPropertyType(property, _namespace) == "string") {
+            var defaultValue = string.IsNullOrEmpty(propDefaultValue) ? "default(string)" : propDefaultValue;
+            setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : (string.IsNullOrWhiteSpace(entity.{0}) ? {2} : entity.{0})", property.Name, FirstCharToLowerCase(property.Name), defaultValue));
           }
           else {
-            var defaultValue = string.IsNullOrEmpty(propDefaultValue) ? ("default(" + GetPropertyType(property, _namespace) + ")") : propDefaultValue;
-            setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : {2}", property.Name, FirstCharToLowerCase(property.Name), defaultValue));
+            if (string.IsNullOrEmpty(propDefaultValue))
+              setStatements.Add(string.Format("entity.{0} = {1} ?? entity.{0}", property.Name, FirstCharToLowerCase(property.Name)));
+            else
+              setStatements.Add(string.Format("entity.{0} = {1} ?? entity.{0} ?? {2}", property.Name, FirstCharToLowerCase(property.Name), propDefaultValue));
           }
         }
 
@@ -486,7 +496,10 @@ namespace <#= _namespace #>;
 
           var typeName = GetRelationPropertyTypeName(relationProperty, _namespace);
           createParameters.Add(typeName + " " + FirstCharToLowerCase(relationProperty.Name));
-          setStatements.Add(string.Format("entity.{0} = {1} != null ? {1} : {2}", relationProperty.Name, FirstCharToLowerCase(relationProperty.Name), defaultValue));
+          if (defaultValue == "default")
+            setStatements.Add(string.Format("entity.{0} = {1} ?? entity.{0}", relationProperty.Name, FirstCharToLowerCase(relationProperty.Name)));
+          else
+            setStatements.Add(string.Format("entity.{0} = {1} ?? entity.{0} ?? {2}", relationProperty.Name, FirstCharToLowerCase(relationProperty.Name), defaultValue));
         }
 
         foreach (EntityRelationProperty relationProperty in baseClass.RelationProperties.Where(prop => prop.Generate && (prop.Multiplicity == Multiplicity.ZeroOrOne || prop.Multiplicity == Multiplicity.One) && !(bool)prop.GetProperty("GenerateFactoryParameter"))) {
@@ -989,6 +1002,12 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
   // Method GetPropertyParameterType
   private string GetPropertyParameterType(Property prop, string _namespace) {
     string propertyDataType = string.Empty;
+    // A type Entity Developer does not know comes as its name: the model's external enums. The parameter is
+    // nullable like the other value types, so that leaving it out applies the initial value.
+    if (prop.Type is string) {
+      return codeProvider.FormatNullable(codeProvider.GetValidIdentifier((string)prop.Type));
+    }
+
     var codeElementProp = prop.Type as ICodeElement;
     if (codeElementProp != null) {
       propertyDataType = codeProvider.GetValidIdentifier(codeElementProp.Name);
@@ -1006,6 +1025,10 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 
   // Method GetPropertyIsValueType
   private bool GetPropertyIsValueType(Property prop) {
+    if (prop.Type is string) {
+      return true;
+    }
+
     // DateOnly and TimeOnly are value types whichever way Entity Developer
     // models them, so decide by name before the EntityDataType lookup.
     var typeName = prop.Type == null ? string.Empty : prop.Type.ToString();

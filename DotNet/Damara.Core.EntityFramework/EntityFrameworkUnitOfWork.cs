@@ -29,12 +29,28 @@ public abstract class EntityFrameworkUnitOfWork<TDbContext> : UnitOfWorkBase
     {
         this.Context = dbContext;
         var seq = this.CreateSequence;
+        this.Context.ChangeTracker.Tracked += HandleTracked;
     }
 
     /// <summary>
     /// Gets the database context.
     /// </summary>
     public TDbContext Context { get; private set; }
+
+    /// <summary>
+    /// Calls <see cref="IMaterializationAware.OnMaterialized"/> on an entity a query has just returned, once the
+    /// context tracks it: during materialization the entity is not tracked yet, and a lazy load there leaves it
+    /// detached.
+    /// </summary>
+    /// <param name="sender">The change tracker.</param>
+    /// <param name="e">The tracked entry.</param>
+    private static void HandleTracked(object sender, EntityTrackedEventArgs e)
+    {
+        if (e.FromQuery && e.Entry.Entity is IMaterializationAware materializationAware)
+        {
+            materializationAware.OnMaterialized();
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether this instance has changes.

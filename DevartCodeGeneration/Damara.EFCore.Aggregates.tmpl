@@ -2297,7 +2297,63 @@ global using Microsoft.Extensions.Configuration;
           output.Indent++;
         }
 #>
+<#+
+        EntityRelationProperty fixupOpposite = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+        bool fixupInverse = relationProperty.Multiplicity != Multiplicity.Many && fixupOpposite.Multiplicity == Multiplicity.Many && fixupOpposite.Generate;
+        if (fixupInverse) {
+#>
+            var previous<#= relationProperty.Name #> = this._<#= relationProperty.Name #>;
+<#+
+        }
+#>
             this._<#= relationProperty.Name #> = value;
+<#+
+        // Keeps the foreign key in step with the navigation, as LinqConnect's EntityRef did: EF Core copies the
+        // principal's key only at DetectChanges, and the change handlers read the key at once. A null value
+        // clears a nullable key only: EF Core finds the principal of a detached or deleted entity by a required
+        // key, to take the entity out of the principal's collection.
+        if (relationProperty.Multiplicity != Multiplicity.Many) {
+          EntityRelationProperty fkOpposite = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+          var fkProperties = fkOpposite.Properties.Cast<Property>().ToArray();
+          var keyProperties = relationProperty.Properties.Cast<Property>().ToArray();
+          if ((fkOpposite.Multiplicity == Multiplicity.Many || relationProperty.Constrained) && fkProperties.Length > 0 && fkProperties.Length == keyProperties.Length) {
+#>
+            if (value != null)
+            {
+<#+
+            for (int fkIndex = 0; fkIndex < fkProperties.Length; fkIndex++) {
+#>
+                this._<#= fkProperties[fkIndex].Name #> = value.<#= codeProvider.GetValidIdentifier(keyProperties[fkIndex].Name) #>;
+<#+
+            }
+#>
+            }
+<#+
+            if (fkProperties.All(p => p.Nullable)) {
+#>
+            else
+            {
+<#+
+              foreach (Property fkProperty in fkProperties) {
+#>
+                this._<#= fkProperty.Name #> = null;
+<#+
+              }
+#>
+            }
+<#+
+            }
+          }
+        }
+#>
+<#+
+        if (fixupInverse) {
+#>
+            previous<#= relationProperty.Name #>?.FixupRemove<#= codeProvider.GetValidIdentifier(fixupOpposite.Name) #>(this);
+            value?.FixupAdd<#= codeProvider.GetValidIdentifier(fixupOpposite.Name) #>(this);
+<#+
+        }
+#>
 <#+
         if (relationProperty.Multiplicity != Multiplicity.Many && (supportPropertyChanging || PropertyChangePartialMethods)) {
           output.Indent--;
@@ -2320,6 +2376,32 @@ global using Microsoft.Extensions.Configuration;
     }
 <#+
     }
+#>
+<#+
+    // The inverse side of a reference navigation: its setter keeps this collection in step without loading it.
+    if (relationProperty.Multiplicity == Multiplicity.Many) {
+      EntityRelationProperty inverseReference = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
+      if (inverseReference.Generate && inverseReference.Multiplicity != Multiplicity.Many) {
+        string elementType = GetCodeElementReference(relationProperty.RelationClass, _namespace);
+#>
+
+    internal void FixupAdd<#= propName #>(<#= elementType #> entity)
+    {
+        if (this._<#= relationProperty.Name #> != null && !this._<#= relationProperty.Name #>.Contains(entity))
+        {
+            this._<#= relationProperty.Name #>.Add(entity);
+        }
+    }
+
+    internal void FixupRemove<#= propName #>(<#= elementType #> entity)
+    {
+        this._<#= relationProperty.Name #>?.Remove(entity);
+    }
+<#+
+      }
+    }
+#>
+<#+
   }
 #>
 <#+
@@ -2603,6 +2685,11 @@ global using Microsoft.Extensions.Configuration;
       Vendor vendor = model.GetVendor();
       if (vendor != null)
         dbType = vendor.GetParameterType(dbType, parameter.ServerType);
+      // A DATE or DATETIME2 parameter keeps its server type: DbType.DateTime is SQL datetime, which rejects dates before 1753.
+      if (dbType == System.Data.DbType.DateTime && string.Equals(parameter.ServerType, "date", StringComparison.OrdinalIgnoreCase))
+        dbType = System.Data.DbType.Date;
+      else if (dbType == System.Data.DbType.DateTime && string.Equals(parameter.ServerType, "datetime2", StringComparison.OrdinalIgnoreCase))
+        dbType = System.Data.DbType.DateTime2;
 #>
 
                 DbParameter <#= parameterVar #> = <#= cmdVar #>.CreateParameter();
