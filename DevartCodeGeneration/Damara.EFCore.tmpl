@@ -2186,8 +2186,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
             {
 <#+
         if (relationProperty.Multiplicity != Multiplicity.Many && (supportPropertyChanging || PropertyChangePartialMethods)) {
+          // The current value is read through the property, which lazy loads it: compared with the backing field,
+          // setting a reference that was never loaded to null would do nothing.
 #>
-                if (this._<#= relationProperty.Name #> != value)
+                var previous<#= relationProperty.Name #> = this.<#= propName #>;
+                if (previous<#= relationProperty.Name #> != value)
                 {
 <#+
           if (PropertyChangePartialMethods) {
@@ -2206,9 +2209,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 <#+
         EntityRelationProperty fixupOpposite = (EntityRelationProperty)relationProperty.OppositeRelationProperty;
         bool fixupInverse = relationProperty.Multiplicity != Multiplicity.Many && fixupOpposite.Multiplicity == Multiplicity.Many && fixupOpposite.Generate;
-        if (fixupInverse) {
+        if (fixupInverse && !(supportPropertyChanging || PropertyChangePartialMethods)) {
 #>
-                var previous<#= relationProperty.Name #> = this._<#= relationProperty.Name #>;
+                var previous<#= relationProperty.Name #> = this.<#= propName #>;
 <#+
         }
 #>
