@@ -22,7 +22,7 @@ public sealed class UnitOfWorkChangeLogger
     /// </summary>
     public const int MaxDescribedEntities = 100;
 
-    private readonly UnitOfWorkBase unitOfWork;
+    private readonly IUnitOfWork unitOfWork;
     private readonly Func<ILogger> loggerAccessor;
 
     private EntityBase[] pendingAdded = [];
@@ -34,7 +34,7 @@ public sealed class UnitOfWorkChangeLogger
     /// </summary>
     /// <param name="unitOfWork">The unit of work to observe.</param>
     /// <param name="loggerAccessor">Accessor returning the logger to write to, evaluated at the time of each save or cancel.</param>
-    public UnitOfWorkChangeLogger(UnitOfWorkBase unitOfWork, Func<ILogger> loggerAccessor)
+    public UnitOfWorkChangeLogger(IUnitOfWork unitOfWork, Func<ILogger> loggerAccessor)
     {
         ArgumentNullException.ThrowIfNull(unitOfWork);
         ArgumentNullException.ThrowIfNull(loggerAccessor);

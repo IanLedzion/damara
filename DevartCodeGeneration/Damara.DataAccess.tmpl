@@ -618,6 +618,8 @@ namespace <#= _namespace #>;
     {
         var entity = new <#= fullClassName #>();
 
+        this.OnEntityCreating(entity);
+
 <#+
       for (var i = 0; i < setStatements.Count; i++) {
         var setStatement = setStatements[i];
@@ -638,6 +640,12 @@ namespace <#= _namespace #>;
     /// Called when the entity has been created.
     /// </summary>
     /// <param name="entity">The entity.</param>
+    /// <summary>
+    /// Called when the entity has been constructed, before its properties are set and it is added.
+    /// </summary>
+    /// <param name="entity">The entity.</param>
+    partial void OnEntityCreating(<#= fullClassName #> entity);
+
     partial void OnEntityCreated(<#= fullClassName #> entity);
 }
 <#+

@@ -13,7 +13,7 @@ namespace Damara.MSTest;
 /// </summary>
 /// <typeparam name="TUnitOfWork">The type of the unit of work.</typeparam>
 public abstract class HostedTestBase<TUnitOfWork>
-    where TUnitOfWork : UnitOfWorkBase
+    where TUnitOfWork : class, IUnitOfWork
 {
     private readonly Lazy<IServiceProvider> scopedServiceProviderFactory;
     private readonly Lazy<TUnitOfWork> unitOfWorkFactory;
