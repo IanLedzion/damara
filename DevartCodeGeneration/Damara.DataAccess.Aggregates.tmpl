@@ -18,6 +18,7 @@
 <#@ property name="ModelNameAsFilesPrefix" category="Output" type="System.Boolean" default="True" description="If it is set to True, then the main model file name will be used as a prefix for the names of the repository files generated for entities." #>
 <#@ property name="RepositoryOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated repository classes for EF Core model." #>
 <#@ property name="ValidationOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies output for the generated domain service classes for EF Core model." #>
+<#@ property name="AggregatesFolder" category="Output" type="System.String" description="Specifies a folder, also a namespace segment, under which the aggregates are generated ({AggregatesFolder}\{Aggregate}\{Kind}); empty generates them at the root." #>
 <#@ property name="CapabilityOutput" category="Output" type="OutputInfo" editor="OutputInfoEditor" description="Specifies the root output for the generated capability slices ({Aggregate}\Capabilities\{Capability})." #>
 <#
   // Generation options
@@ -332,7 +333,7 @@ public partial class <#= unitOfWorkName #>Factory
 
       string _namespace = GetKindNamespace(cls, "Repositories");
       string fullClassName = GetEmittedNamespace(cls) + "." + codeProvider.GetValidIdentifier(cls.Name);
-      OutputInfo aggregateOutput = GetSubfolderOutput(RepositoryOutput, Path.Combine(GetAggregateName(cls), "Repositories"));
+      OutputInfo aggregateOutput = GetSubfolderOutput(RepositoryOutput, Path.Combine(GetAggregatePath(cls), "Repositories"));
 
       var repositoryClassAccessModifier = IsAggregateRoot(cls) ? "public" : "internal";
 
@@ -412,7 +413,7 @@ namespace <#= _namespace #>;
     /// <returns>The <#= cls.Name #> entities found, in no particular order.</returns>
     public virtual IQueryable<<#= fullClassName #>> GetByIds(IEnumerable<<#= keyType #>> ids) => this.ObjectSet.Where(e => ids.Contains(e.<#= keys[0].Name #>));
 <#+
-          string definitionNamespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
+          string definitionNamespace = GetAggregateNamespace(cls) + ".Definitions";
           foreach (string capableClassName in GetCapableClasses(cls).Keys.OrderBy(k => k, StringComparer.Ordinal)) {
 #>
 
@@ -444,7 +445,7 @@ namespace <#= _namespace #>;
       string rootFileName = cls.Name + "Factory";
       string _namespace = GetKindNamespace(cls, "Factories");
       string fullClassName = GetEmittedNamespace(cls) + "." + codeProvider.GetValidIdentifier(cls.Name);
-      OutputInfo aggregateOutput = GetSubfolderOutput(FactoryOutput, Path.Combine(GetAggregateName(cls), "Factories"));
+      OutputInfo aggregateOutput = GetSubfolderOutput(FactoryOutput, Path.Combine(GetAggregatePath(cls), "Factories"));
 
       var privateFactoryMethod = (bool)cls.GetProperty("PrivateDefaultCreateMethod");
       var factoryClassAccessModifier = IsAggregateRoot(cls) ? "public" : "internal";
@@ -597,7 +598,7 @@ namespace <#= _namespace #>;
     foreach (EntityClass cls in model.Classes.Where(c => (bool)c.GetProperty("GenerateDomainService") && IsGenerated(c))) {
       string rootFileName = cls.Name + "DomainService";
       string _namespace = GetKindNamespace(cls, "DomainServices");
-      OutputInfo aggregateOutput = GetSubfolderOutput(DomainServiceOutput, Path.Combine(GetAggregateName(cls), "DomainServices"));
+      OutputInfo aggregateOutput = GetSubfolderOutput(DomainServiceOutput, Path.Combine(GetAggregatePath(cls), "DomainServices"));
 
       output.PushOutputRedirection(aggregateOutput, "", rootFileName, OverwriteMode.None);
 #>
@@ -775,7 +776,7 @@ public partial class <#= cls.Name #>DomainService : Damara.DomainServiceBase<<#=
       string rootFileName = cls.Name + "Validator";
       string _namespace = GetKindNamespace(cls, "Validation");
       string fullClassName = GetEmittedNamespace(cls) + "." + codeProvider.GetValidIdentifier(cls.Name);
-      OutputInfo aggregateOutput = GetSubfolderOutput(ValidationOutput, Path.Combine(GetAggregateName(cls), "Validation"));
+      OutputInfo aggregateOutput = GetSubfolderOutput(ValidationOutput, Path.Combine(GetAggregatePath(cls), "Validation"));
 
       string validatorClassName = string.Format("{0}Validator", cls.Name);
 
@@ -1069,6 +1070,26 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
     return !string.IsNullOrEmpty((entityClass.GetProperty("AggregateRootName") as string ?? string.Empty).Trim());
   }
 
+  // Method GetAggregateNamespace
+  // The namespace of a class's aggregate: the default namespace, the AggregatesFolder segment when it is set, and
+  // the aggregate.
+  private string GetAggregateNamespace(EntityClass cls) {
+
+    string root = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
+    string folder = (AggregatesFolder ?? string.Empty).Trim().Trim('\\', '/');
+    if (folder.Length == 0)
+      return root + "." + GetAggregateName(cls);
+    return root + "." + folder.Replace('\\', '.').Replace('/', '.') + "." + GetAggregateName(cls);
+  }
+
+  // Method GetAggregatePath
+  // The folder of a class's aggregate, relative to an output: under AggregatesFolder when it is set.
+  private string GetAggregatePath(EntityClass cls) {
+
+    string folder = (AggregatesFolder ?? string.Empty).Trim().Trim('\\', '/');
+    return folder.Length == 0 ? GetAggregateName(cls) : Path.Combine(folder, GetAggregateName(cls));
+  }
+
   // Method GetAggregateName
   // The aggregate an entity belongs to, from the AggregateRootName extended property.
   private string GetAggregateName(EntityClass cls) {
@@ -1099,14 +1120,14 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
       return codeProvider.GetValidIdentifier(element.Namespace);
     string root = codeProvider.GetValidIdentifier(model.GetDefaultNamespace());
     if (element is EntityClass)
-      return root + "." + GetAggregateName((EntityClass)element) + ".Entities";
+      return GetAggregateNamespace((EntityClass)element) + ".Entities";
     return root + ".Entities";
   }
 
   // Method GetKindNamespace
   // The namespace for a data access artifact kind of an entity's aggregate.
   private string GetKindNamespace(EntityClass cls, string kind) {
-    return codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + "." + kind;
+    return GetAggregateNamespace(cls) + "." + kind;
   }
 
   // Method GetSubfolderOutput
@@ -1244,7 +1265,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
 
   // Method GetCapabilityNamespace
   private string GetCapabilityNamespace(EntityClass cls, string capability) {
-    return codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Capabilities." + capability;
+    return GetAggregateNamespace(cls) + ".Capabilities." + capability;
   }
 #>
 <#+
@@ -1286,7 +1307,7 @@ public partial class <#= validatorClassName #><#= validatorGenericArguments #> :
         List<object> members = capabilityPair.Value;
         EntityRelationProperty backing = backings.ContainsKey(capability) ? backings[capability] : null;
         string _namespace = GetCapabilityNamespace(cls, capability);
-        OutputInfo capabilityOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Capabilities", capability));
+        OutputInfo capabilityOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregatePath(cls), "Capabilities", capability));
 
         GenerateCapabilityClass(cls, capability, members, backing, _namespace, capabilityOutput, entityTypeName);
         if (generateValidators)
@@ -1733,8 +1754,8 @@ public partial class <#= domainServiceClassName #> : Damara.DomainServiceBase<<#
     string entityName = codeProvider.GetValidIdentifier(cls.Name);
     string entityReceiver = codeProvider.GetValidIdentifier(FirstCharToLowerCase(entityName));
     string baseName = entityName + "DefinitionBase";
-    string _namespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
-    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
+    string _namespace = GetAggregateNamespace(cls) + ".Definitions";
+    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregatePath(cls), "Definitions"));
     output.Extension = ".cs";
     output.PushOutputRedirection(classOutput, "", baseName, OverwriteMode.None);
 #>
@@ -1821,8 +1842,8 @@ public abstract partial class <#= baseName #>
   private void GenerateCapableClassQueries(EntityClass cls, Dictionary<string, List<string>> capableClasses, Dictionary<string, EntityRelationProperty> backings, string entityTypeName) {
     string entityName = codeProvider.GetValidIdentifier(cls.Name);
     string queriesName = entityName + "DefinitionQueries";
-    string _namespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
-    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
+    string _namespace = GetAggregateNamespace(cls) + ".Definitions";
+    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregatePath(cls), "Definitions"));
     output.Extension = ".cs";
     output.PushOutputRedirection(classOutput, "", queriesName, OverwriteMode.None);
 #>
@@ -1893,8 +1914,8 @@ public static partial class <#= queriesName #>
     string entityName = codeProvider.GetValidIdentifier(cls.Name);
     string entityReceiver = codeProvider.GetValidIdentifier(FirstCharToLowerCase(entityName));
     string baseName = entityName + "DefinitionBase";
-    string _namespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
-    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
+    string _namespace = GetAggregateNamespace(cls) + ".Definitions";
+    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregatePath(cls), "Definitions"));
 
     var backings = GetCapabilityBackings(cls);
     var capabilityProperties = new Dictionary<string, string>();
@@ -2025,8 +2046,8 @@ public sealed partial class <#= definitionName #> : <#= baseName #>
   private void GenerateCapableClassValidator(EntityClass cls, string className, List<string> capabilityNames, string unitOfWorkName, string unitOfWorkNamespace) {
     string definitionName = className + "Definition";
     string validatorClassName = definitionName + "Validator";
-    string _namespace = codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions";
-    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregateName(cls), "Definitions"));
+    string _namespace = GetAggregateNamespace(cls) + ".Definitions";
+    OutputInfo classOutput = GetSubfolderOutput(CapabilityOutput, Path.Combine(GetAggregatePath(cls), "Definitions"));
     string validatorBaseClassName = string.Format("Damara.ValidatorBase<{0}.I{1}, {2}>", unitOfWorkNamespace, unitOfWorkName, definitionName);
     output.Extension = ".cs";
     output.PushOutputRedirection(classOutput, "", validatorClassName, OverwriteMode.None);
@@ -2086,7 +2107,7 @@ public partial class <#= validatorClassName #> : <#= validatorBaseClassName #>
         foreach (string capability in capableClass.Value)
           kindNamespaces.Add(GetCapabilityNamespace(cls, capability));
       if (GetCapableClasses(cls).Count > 0)
-        kindNamespaces.Add(codeProvider.GetValidIdentifier(model.GetDefaultNamespace()) + "." + GetAggregateName(cls) + ".Definitions");
+        kindNamespaces.Add(GetAggregateNamespace(cls) + ".Definitions");
       if ((bool)cls.GetProperty("GenerateRepository"))
         kindNamespaces.Add(GetKindNamespace(cls, "Repositories"));
       if ((bool)cls.GetProperty("GenerateFactory"))
