@@ -17,7 +17,7 @@
 	<ItemGroup>
 		<PackageReference Include="EmailValidation" Version="1.4.0" />
 		<PackageReference Include="FluentValidation" Version="12.2.0" />
-        <PackageReference Include="libphonenumber-csharp" Version="9.0.41" />
+        <PackageReference Include="libphonenumber-csharp" Version="9.0.42" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
