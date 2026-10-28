@@ -4242,6 +4242,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
     var pkProperty = (EntityDeveloper.EntityFrameworkCore.EntityProperty)cls.AllProperties.First(p => p.PrimaryKey);
     var keyType = GetPropertyTypeName(pkProperty, _namespace, "System");
+    // An integral key's ids are constants, usable in case labels and patterns; other keys (GUIDs) are parsed.
+    var constantKey = new[] { "int", "long", "short", "byte", "Int32", "Int64", "Int16", "Byte", "System.Int32", "System.Int64", "System.Int16", "System.Byte" }.Contains(keyType);
 #>
 
         /// <summary>
@@ -4257,7 +4259,18 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
             /// <summary>
             /// Gets the <#= id.Key #> Id.
             /// </summary>
+<#+
+            if (constantKey) {
+#>
+            public const <#= keyType #> <#= id.Key #> = <#= id.Value #>;
+<#+
+            }
+            else {
+#>
             public static <#= keyType #> <#= id.Key #> { get; } = <#= keyType #>.Parse("<#= id.Value #>");
+<#+
+            }
+#>
 <#+
         }
 #>
