@@ -391,15 +391,16 @@ namespace <#= _namespace #>;
         }
 #>
 <#+
-        List<string> condition = new List<string>();
-        foreach (Property prop in cls.AllProperties.Where(p => p.PrimaryKey).GroupBy(p => p.Name).Select(g => g.First()))
-          condition.Add(string.Format("e.{0} == {1}", prop.Name, FirstCharToLowerCase(prop.Name)));
+        // DbSet.Find takes the key values in the order of the key (HasKey orders them by PrimaryKeyIndex).
+        List<string> keyValues = cls.AllProperties.Where(p => p.PrimaryKey).GroupBy(p => p.Name).Select(g => g.First()).OfType<EntityProperty>()
+          .OrderBy(p => p.PrimaryKeyIndex).Select(p => FirstCharToLowerCase(p.Name)).ToList();
 #>
     /// <summary>
-    /// Gets a <#= cls.Name #> by identifier.
+    /// Gets a <#= cls.Name #> by identifier: the instance the unit of work already tracks when there is one (no
+    /// database round trip), else the one read from the database.
     /// </summary>
     /// <returns>A <#= cls.Name #>, or null if none was found.</returns>
-    public virtual <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>) => this.ObjectSet.SingleOrDefault(e => <#= codeProvider.Join(" && ", condition.ToArray()) #>);
+    public virtual <#= fullClassName #> GetById(<#= codeProvider.Join(", ", lst.ToArray()) #>) => this.ObjectSet.Find(<#= codeProvider.Join(", ", keyValues.ToArray()) #>);
 <#+
         List<Property> keys = cls.AllProperties.Where(p => p.PrimaryKey).GroupBy(p => p.Name).Select(g => g.First()).Cast<Property>().ToList();
         if (keys.Count == 1) {
