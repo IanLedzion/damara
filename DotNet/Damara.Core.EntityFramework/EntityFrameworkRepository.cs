@@ -50,7 +50,6 @@ public abstract class EntityFrameworkRepository<TDbContext, TIUnitOfWork, TUnitO
     {
         ArgumentNullException.ThrowIfNull(entity);
         this.ObjectSet.Add(entity);
-        this.Context.ChangeTracker.DetectChanges();
     }
 
     /// <summary>
