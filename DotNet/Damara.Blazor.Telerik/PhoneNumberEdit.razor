@@ -1,0 +1,35 @@
+﻿@namespace Damara.Blazor.Telerik
+@using global::Telerik.Blazor
+@using global::Telerik.Blazor.Components
+
+<div class="damara-phone-number-edit" style="display: flex; gap: 0.25rem; width: @this.Width;">
+    <TelerikDropDownList TItem="PhoneNumberRegion"
+                         TValue="string"
+                         Data="@this.Regions"
+                         Value="@this.RegionCode"
+                         ValueExpression="@(() => this.RegionCode)"
+                         ValueChanged="@((string region) => this.OnRegionChanged(region))"
+                         ValueField="@nameof(PhoneNumberRegion.Code)"
+                         TextField="@nameof(PhoneNumberRegion.Text)"
+                         Filterable="true"
+                         FilterOperator="StringFilterOperator.Contains"
+                         Enabled="@this.Enabled"
+                         Width="@this.RegionWidth">
+        <ValueTemplate>@context.CallingCode</ValueTemplate>
+        <DropDownListSettings>
+            <DropDownListPopupSettings Width="280px" />
+        </DropDownListSettings>
+    </TelerikDropDownList>
+
+    <TelerikTextBox Id="@this.Id"
+                    Value="@this.Text"
+                    ValueExpression="@(() => this.Text)"
+                    ValueChanged="@((string text) => this.Text = text)"
+                    DebounceDelay="0"
+                    OnBlur="@this.OnTextBlur"
+                    Placeholder="@this.Placeholder"
+                    AutoComplete="tel-national"
+                    InputMode="tel"
+                    Enabled="@this.Enabled"
+                    Width="100%" />
+</div>
