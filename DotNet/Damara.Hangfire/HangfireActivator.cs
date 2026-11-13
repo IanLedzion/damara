@@ -62,12 +62,12 @@ public class HangfireActivator : JobActivator
     /// <summary>
     /// Activates the job.
     /// </summary>
-    /// <param name="type">The type.</param>
+    /// <param name="jobType">The type.</param>
     /// <returns>
     /// An object.
     /// </returns>
-    public override object ActivateJob(Type type)
+    public override object ActivateJob(Type jobType)
     {
-        return this.serviceProvider.GetRequiredService(type);
+        return this.serviceProvider.GetRequiredService(jobType);
     }
 }
