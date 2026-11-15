@@ -19,7 +19,8 @@ public class ValidationHelpersTests
     public void BuildMessages_InvalidInstance_ValidResult()
     {
         var instance = new ObjectInstances.EntityInstance() { Name = "Name" };
-        var validator = new ObjectInstances.EntityInstanceValidator(null);
+        using var unitOfWork = new ObjectInstances.MockUnitOfWork();
+        var validator = new ObjectInstances.EntityInstanceValidator(unitOfWork);
         FluentValidation.Results.ValidationResult result;
 
         instance.Status = "Error";
@@ -35,7 +36,8 @@ public class ValidationHelpersTests
     public void BuildJsonMessages_InvalidInstance_ValidResult()
     {
         var instance = new ObjectInstances.EntityInstance() { Name = "Name" };
-        var validator = new ObjectInstances.EntityInstanceValidator(null);
+        using var unitOfWork = new ObjectInstances.MockUnitOfWork();
+        var validator = new ObjectInstances.EntityInstanceValidator(unitOfWork);
         FluentValidation.Results.ValidationResult result;
 
         instance.Status = "Error";
@@ -44,8 +46,8 @@ public class ValidationHelpersTests
 
         var array = JArray.Parse(messages);
         var message = array[0];
-        Assert.AreEqual("Error", message["Severity"], "Severity not set");
-        Assert.AreEqual("Error Status", message["Message"], "Severity not set");
+        Assert.AreEqual("Error", (string)message["Severity"], "Severity not set");
+        Assert.AreEqual("Error Status", (string)message["Message"], "Message not set");
     }
 
     /// <summary>
@@ -68,7 +70,8 @@ public class ValidationHelpersTests
     public void ErrorFailureCount_InvalidInstance_ValidResult()
     {
         var instance = new ObjectInstances.EntityInstance() { Name = "Name" };
-        var validator = new ObjectInstances.EntityInstanceValidator(null);
+        using var unitOfWork = new ObjectInstances.MockUnitOfWork();
+        var validator = new ObjectInstances.EntityInstanceValidator(unitOfWork);
         FluentValidation.Results.ValidationResult result;
 
         instance.Status = "Error";
@@ -89,7 +92,8 @@ public class ValidationHelpersTests
     public void WarningFailureCount_InvalidInstance_ValidResult()
     {
         var instance = new ObjectInstances.EntityInstance() { Name = "Name" };
-        var validator = new ObjectInstances.EntityInstanceValidator(null);
+        using var unitOfWork = new ObjectInstances.MockUnitOfWork();
+        var validator = new ObjectInstances.EntityInstanceValidator(unitOfWork);
         FluentValidation.Results.ValidationResult result;
 
         instance.Status = "Warning";
@@ -109,7 +113,8 @@ public class ValidationHelpersTests
     public void InfoFailureCount_InvalidInstance_ValidResult()
     {
         var instance = new ObjectInstances.EntityInstance() { Name = "Name" };
-        var validator = new ObjectInstances.EntityInstanceValidator(null);
+        using var unitOfWork = new ObjectInstances.MockUnitOfWork();
+        var validator = new ObjectInstances.EntityInstanceValidator(unitOfWork);
         FluentValidation.Results.ValidationResult result;
 
         instance.Status = "Info";
@@ -132,7 +137,7 @@ public class ValidationHelpersTests
         var json = JObject.Parse(result.SerialiseJsonErrorCodes());
 
         var serialised = json["Failures"][0];
-        Assert.AreEqual("Status", serialised["PropertyName"], "Property name not serialised");
+        Assert.AreEqual("Status", (string)serialised["PropertyName"], "Property name not serialised");
         Assert.AreEqual(JTokenType.Null, serialised["AttemptedValue"].Type, "A missing attempted value should serialise as null rather than throw");
     }
 }

@@ -23,8 +23,10 @@ public abstract class PageModelBase<TUnitOfWork, TEntityBase> : PageModelBase<TU
     /// </summary>
     /// <param name="unitOfWork">The unit of work.</param>
     /// <param name="logger">The logger.</param>
-    /// <param name="entity">The entity.</param>
+    /// <param name="entity">The entity, or null for a page model that has none yet.</param>
+#nullable enable annotations
     protected PageModelBase(TUnitOfWork unitOfWork, ILogger logger, TEntityBase? entity)
+#nullable restore
         : base(unitOfWork, logger)
     {
         this.Entity = entity;

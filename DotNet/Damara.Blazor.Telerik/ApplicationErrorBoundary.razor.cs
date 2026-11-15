@@ -207,7 +207,8 @@ public partial class ApplicationErrorBoundary : ErrorBoundaryBase, IDisposable
     }
 
     /// <summary>
-    /// Closes the dialog. If the page had been given up on, it is tried once more.
+    /// Closes the dialog. If the page had been given up on, it is tried once more. The button's
+    /// callback renders the boundary again afterwards, which removes the dialog.
     /// </summary>
     private void Continue()
     {
@@ -218,10 +219,6 @@ public partial class ApplicationErrorBoundary : ErrorBoundaryBase, IDisposable
         if (this.CurrentException != null)
         {
             this.Recover();
-        }
-        else
-        {
-            this.StateHasChanged();
         }
     }
 

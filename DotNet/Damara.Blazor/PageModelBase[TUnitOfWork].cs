@@ -2,6 +2,7 @@
 // Copyright © Ian Ledzion. All rights reserved.
 // </copyright>
 
+using System.Diagnostics.CodeAnalysis;
 using ILogger = Serilog.ILogger;
 
 namespace Damara.Blazor;
@@ -10,6 +11,7 @@ namespace Damara.Blazor;
 /// Provides a base page model class.
 /// </summary>
 /// <typeparam name="TUnitOfWork">Type of the unit of work.</typeparam>
+[SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1649:File name should match first type name", Justification = "Generic type")]
 public abstract class PageModelBase<TUnitOfWork> : ServiceBase<TUnitOfWork>
     where TUnitOfWork : IUnitOfWork
 {

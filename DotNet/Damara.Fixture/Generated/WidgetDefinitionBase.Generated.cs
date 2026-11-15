@@ -9,6 +9,8 @@
 // the code is regenerated.
 //------------------------------------------------------------------------------
 
+#nullable enable annotations
+
 namespace Damara.Fixture.Widget.Definitions;
 
 public abstract partial class WidgetDefinitionBase

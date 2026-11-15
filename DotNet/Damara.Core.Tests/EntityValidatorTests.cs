@@ -21,7 +21,8 @@ public class EntityValidatorTests
     public void Validate_CustomValidation_ValidResult()
     {
         var instance = new EntityInstance();
-        var validator = new EntityInstanceValidator(null);
+        using var unitOfWork = new MockUnitOfWork();
+        var validator = new EntityInstanceValidator(unitOfWork);
         FluentValidation.Results.ValidationResult result;
 
         instance.Name = "Invalid";

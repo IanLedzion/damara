@@ -9,6 +9,8 @@
 // the code is regenerated.
 //------------------------------------------------------------------------------
 
+#nullable enable annotations
+
 namespace Damara.Fixture.Widget.Capabilities.Gear;
 
 public sealed partial class GearCapability

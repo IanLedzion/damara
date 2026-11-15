@@ -1494,6 +1494,8 @@ public sealed partial class <#= capability #>Capability
     GenerateFileHeader(true);
 #>
 
+#nullable enable annotations
+
 namespace <#= _namespace #>;
 
 public sealed partial class <#= capability #>Capability
@@ -1774,6 +1776,8 @@ public abstract partial class <#= baseName #>
     output.PushOutputRedirection(classOutput, baseName, baseName + ".Generated");
     GenerateFileHeader(true);
 #>
+
+#nullable enable annotations
 
 namespace <#= _namespace #>;
 
