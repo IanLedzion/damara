@@ -7,12 +7,23 @@ using PhoneNumbers;
 namespace Damara.Validation;
 
 /// <summary>
-/// Mail address validator using System.Net.Mail.
+/// Phone number validator using libphonenumber: accepts any valid number (mobile or landline) of any country,
+/// in national format for the default region or in international format (+ or the region's international prefix).
 /// </summary>
 /// <typeparam name="T">Generic type parameter.</typeparam>
 internal class PhoneValidator<T> : PropertyValidator<T, string>
 {
-    private const string AllowedCharacters = @"+01234567890 ()";
+    /// <summary>
+    /// The characters allowed besides digits: the leading plus and the usual separators (space, brackets, slash,
+    /// hyphen, dot), as in "+41 61 123 45 67", "061/123 45 67" or "(061) 123-45-67".
+    /// </summary>
+    private const string AllowedSeparators = @"+ ()/-.";
+
+    /// <summary>
+    /// The maximum number of digits in a phone number (E.164), separators not counted.
+    /// </summary>
+    private const int MaximumDigits = 15;
+
     private readonly Func<T, string> defaultRegion;
 
     /// <summary>
@@ -44,17 +55,17 @@ internal class PhoneValidator<T> : PropertyValidator<T, string>
             return true;
         }
 
-        if (value.Length > 15)
+        if (value.Any(c => !char.IsAsciiDigit(c) && !AllowedSeparators.Contains(c)))
         {
             return false;
         }
 
-        foreach (var c in value)
+        // An international prefix "00" is two digits more than the "+" it stands for.
+        var digits = value.Count(char.IsAsciiDigit);
+        var maximumDigits = value.TrimStart().StartsWith("00", StringComparison.Ordinal) ? MaximumDigits + 2 : MaximumDigits;
+        if (digits > maximumDigits)
         {
-            if (!AllowedCharacters.Contains(c))
-            {
-                return false;
-            }
+            return false;
         }
 
         var phoneNumberUtil = PhoneNumberUtil.GetInstance();
